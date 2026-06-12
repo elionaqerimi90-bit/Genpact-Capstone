@@ -24,3 +24,9 @@ class UserOut(BaseModel):
     job_title: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
