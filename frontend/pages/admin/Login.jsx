@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { OFFICE_HERO } from '../lib/constants'
 
@@ -10,7 +9,6 @@ export default function Login() {
   const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const navigate = useNavigate()
 
   if (loading) {
     return (
@@ -19,7 +17,14 @@ export default function Login() {
       </div>
     )
   }
-  if (user) return <Navigate to="/" replace />
+  if (user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 text-center">
+        <h1 className="text-2xl font-bold text-slate-900">Welcome, {user.full_name}!</h1>
+        <p className="mt-2 text-slate-500">You are signed in.</p>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -27,7 +32,6 @@ export default function Login() {
     setSubmitting(true)
     try {
       await login(email, password)
-      navigate('/')
     } catch {
       setError('Incorrect email or password. Please try again.')
     } finally {
