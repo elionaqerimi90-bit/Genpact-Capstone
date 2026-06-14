@@ -1,7 +1,7 @@
 import enum
 
 from sqlalchemy import Boolean, Enum, Float, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -25,3 +25,5 @@ class Resource(Base):
     amenities: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     desk_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    reservations = relationship("Reservation", back_populates="resource")

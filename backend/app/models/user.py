@@ -21,6 +21,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255))
     job_title: Mapped[str | None] = mapped_column(String(150), nullable=True)
 
+    reservations = relationship("Reservation", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User {self.email} role={self.role.value}>"
