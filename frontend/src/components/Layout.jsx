@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   Bell,
@@ -12,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getRecentActivity, searchWorkspace } from '../api/client';
 
 const employeeLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -25,6 +27,7 @@ const managerLinks = [
 
 const adminLinks = [
   { to: '/admin', icon: LayoutDashboard, label: 'Admin Dashboard' },
+  { to: '/admin/reservations', icon: Calendar, label: 'Reservations' },
   { to: '/admin/resources', icon: Building2, label: 'Resources' },
   { to: '/admin/builder', icon: Map, label: 'Floor Builder' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
@@ -34,11 +37,75 @@ const adminLinks = [
 export default function Layout() {
   const { user, logout, isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ resources: [], users: [] });
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    getRecentActivity().then(setRecentActivity).catch(() => setRecentActivity([]));
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return undefined;
+
+    const loadRecentActivity = () => {
+      getRecentActivity().then(setRecentActivity).catch(() => setRecentActivity([]));
+    };
+
+    loadRecentActivity();
+    const intervalId = window.setInterval(loadRecentActivity, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [notificationsOpen]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setSearchResults({ resources: [], users: [] });
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      searchWorkspace(query)
+        .then((data) => {
+          setSearchResults({
+            resources: data.resources ?? [],
+            users: data.users ?? [],
+          });
+          setSearchOpen(true);
+        })
+        .catch(() => setSearchResults({ resources: [], users: [] }));
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+  };
+
+  const handleResourceOpen = (resource) => {
+    const params = new URLSearchParams({
+      resourceId: String(resource.id),
+      floor: resource.floor,
+      type: resource.type,
+    });
+    navigate(`/floor-plan?${params.toString()}`);
+    setSearchQuery('');
+    setSearchResults({ resources: [], users: [] });
+    closeSearch();
+  };
+
+  const hasSearchResults =
+    searchResults.resources.length > 0 || searchResults.users.length > 0;
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -159,9 +226,80 @@ export default function Layout() {
             />
             <input
               type="search"
-              placeholder="Search desks, rooms, colleagues…"
+              placeholder="Search desks, rooms, colleagues..."
+              value={searchQuery}
+              onFocus={() => {
+                if (hasSearchResults) setSearchOpen(true);
+              }}
+              onBlur={() => {
+                window.setTimeout(() => closeSearch(), 150);
+              }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!searchOpen) setSearchOpen(true);
+              }}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/10"
             />
+            {searchOpen && searchQuery.trim().length >= 2 && (
+              <div className="absolute left-0 right-0 top-12 z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                {hasSearchResults ? (
+                  <div className="max-h-[420px] overflow-y-auto p-2">
+                    {searchResults.resources.length > 0 && (
+                      <div>
+                        <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Desks & Rooms
+                        </p>
+                        {searchResults.resources.map((resource) => (
+                          <button
+                            key={`resource-${resource.id}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => handleResourceOpen(resource)}
+                            className="flex w-full items-start justify-between rounded-xl px-3 py-2.5 text-left hover:bg-slate-50"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{resource.name}</p>
+                              <p className="text-xs text-slate-500">
+                                Floor {resource.floor} - {resource.zone} - {resource.type}
+                              </p>
+                            </div>
+                            <span className="mt-0.5 rounded-full bg-brand-50 px-2 py-1 text-[11px] font-medium capitalize text-brand-700">
+                              {resource.type}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {searchResults.users.length > 0 && (
+                      <div className="mt-1">
+                        <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Colleagues
+                        </p>
+                        {searchResults.users.map((person) => (
+                          <div
+                            key={`user-${person.id}`}
+                            className="rounded-xl px-3 py-2.5"
+                          >
+                            <p className="text-sm font-medium text-slate-900">{person.full_name}</p>
+                            <p className="text-xs text-slate-500">
+                              {person.email} · {person.job_title || person.role}
+                            </p>
+                            {person.team_name && (
+                              <p className="text-xs text-slate-400">Team: {person.team_name}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-sm text-slate-500">
+                    No matching desks, rooms, or colleagues found.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -170,22 +308,55 @@ export default function Layout() {
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <Building2 size={16} className="text-brand-600" />
-              HQ — New York
+              HQ - New York
               <ChevronDown size={14} className="text-slate-400" />
             </button>
 
-            <button
-              type="button"
-              className="relative rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
-            >
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen((open) => !open)}
+                className="relative rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+              >
+                <Bell size={18} />
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-12 z-20 w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity, index) => (
+                        <div
+                          key={`${activity}-${index}`}
+                          className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                        >
+                          {activity}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-5 text-center text-sm text-slate-500">
+                        No recent activity yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
               {isAdmin && <span className="badge-blue">Admin</span>}
               {isManager && !isAdmin && <span className="badge-amber">Manager</span>}
-              <div className="text-right hidden sm:block">
+              <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-slate-900">{user?.full_name}</p>
                 <p className="text-xs text-slate-500">{user?.job_title ?? user?.role}</p>
               </div>

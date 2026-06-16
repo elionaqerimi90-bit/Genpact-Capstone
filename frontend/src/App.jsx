@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import FloorPlan from './pages/FloorPlan';
 import Reservations from './pages/Reservations';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminReservations from './pages/admin/Reservations';
 import Resources from './pages/admin/Resources';
 import FloorBuilder from './pages/admin/FloorBuilder';
 import Analytics from './pages/admin/Analytics';
@@ -33,6 +34,14 @@ export default function App() {
               element={
                 <AdminRoute>
                   <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/reservations"
+              element={
+                <AdminRoute>
+                  <AdminReservations />
                 </AdminRoute>
               }
             />

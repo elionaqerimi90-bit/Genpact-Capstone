@@ -8,3 +8,8 @@ class FloorPlanOut(BaseModel):
     image_url: str
 
     model_config = {"from_attributes": True}
+
+
+class FloorPlanUpdate(BaseModel):
+    building: str
+    floor: str

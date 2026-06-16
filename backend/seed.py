@@ -7,13 +7,14 @@ Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
 DEMO_USERS = [
-    ("sarah.chen@genpact.com", "password123", "Sarah Chen", UserRole.admin, "Office Manager"),
-    ("priya.sharma@genpact.com", "password123", "Priya Sharma", UserRole.manager, "Director of Workplace"),
-    ("jane.smith@genpact.com", "password123", "Jane Smith", UserRole.employee, "Software Engineer"),
+    ("sarah.chen@genpact.com", "password123", "Sarah Chen", UserRole.admin, "Office Manager", "Platform", None),
+    ("alex.morgan@genpact.com", "password123", "Alex Morgan", UserRole.team_leader, "Team Lead", "Product", None),
+    ("priya.sharma@genpact.com", "password123", "Priya Sharma", UserRole.manager, "Director of Workplace", "Product", None),
+    ("jane.smith@genpact.com", "password123", "Jane Smith", UserRole.employee, "Software Engineer", "Product", None),
 ]
 
 
-for email, password, full_name, role, job_title in DEMO_USERS:
+for email, password, full_name, role, job_title, team_name, team_leader_id in DEMO_USERS:
     user = db.query(User).filter(User.email == email).first()
 
     if user:
@@ -21,6 +22,8 @@ for email, password, full_name, role, job_title in DEMO_USERS:
         user.full_name = full_name
         user.role = role
         user.job_title = job_title
+        user.team_name = team_name
+        user.team_leader_id = team_leader_id
     else:
         db.add(
             User(
@@ -29,8 +32,16 @@ for email, password, full_name, role, job_title in DEMO_USERS:
                 full_name=full_name,
                 role=role,
                 job_title=job_title,
+                team_name=team_name,
+                team_leader_id=team_leader_id,
             )
         )
+
+team_leader = db.query(User).filter(User.email == "alex.morgan@genpact.com").first()
+for teammate_email in ("jane.smith@genpact.com", "priya.sharma@genpact.com"):
+    teammate = db.query(User).filter(User.email == teammate_email).first()
+    if teammate and team_leader:
+        teammate.team_leader_id = team_leader.id
 
 db.commit()
 db.close()

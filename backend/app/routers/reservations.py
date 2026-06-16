@@ -7,9 +7,9 @@ from app.auth import get_current_user, require_admin
 from app.database import get_db
 from app.models.reservation import Reservation, ReservationStatus
 from app.models.user import User, UserRole
-from app.schemas.reservation import ReservationCreate, ReservationOut
+from app.schemas.reservation import ReservationCreate, ReservationOut, ReservationUpdate
 from app.schemas.resource import ResourceOut
-from app.services.booking import cancel_reservation, create_reservation
+from app.services.booking import cancel_reservation, create_reservation, update_reservation
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
 
@@ -62,7 +62,14 @@ def book(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    reservation = create_reservation(db, current_user, data.resource_id, data.date)
+    reservation = create_reservation(
+        db,
+        current_user,
+        data.resource_id,
+        data.date,
+        data.start_time,
+        data.end_time,
+    )
     reservation = (
         db.query(Reservation)
         .options(joinedload(Reservation.resource), joinedload(Reservation.user))
@@ -88,4 +95,36 @@ def cancel(
         raise HTTPException(status_code=404, detail="Reservation not found")
     is_admin = current_user.role == UserRole.admin
     reservation = cancel_reservation(db, reservation, current_user, is_admin)
+    return _to_out(reservation)
+
+
+@router.put("/{reservation_id}", response_model=ReservationOut)
+def admin_update_reservation(
+    reservation_id: int,
+    data: ReservationUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    reservation = (
+        db.query(Reservation)
+        .options(joinedload(Reservation.resource), joinedload(Reservation.user))
+        .filter(Reservation.id == reservation_id)
+        .first()
+    )
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    reservation = update_reservation(
+        db,
+        reservation,
+        data.resource_id,
+        data.date,
+        data.start_time,
+        data.end_time,
+    )
+    reservation = (
+        db.query(Reservation)
+        .options(joinedload(Reservation.resource), joinedload(Reservation.user))
+        .filter(Reservation.id == reservation.id)
+        .first()
+    )
     return _to_out(reservation)

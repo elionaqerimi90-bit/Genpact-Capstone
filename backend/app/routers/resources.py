@@ -1,13 +1,18 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from collections import Counter
+
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_admin
 from app.database import get_db
+from app.models.favorite import Favorite
+from app.models.floor_plan import FloorPlan
 from app.models.reservation import Reservation, ReservationStatus
 from app.models.resource import Resource, ResourceType
 from app.models.user import User
+from app.schemas.recommendation import TeamDeskRecommendation
 from app.schemas.resource import (
     ResourceCreate,
     ResourceOut,
@@ -16,6 +21,18 @@ from app.schemas.resource import (
 )
 
 router = APIRouter(prefix="/resources", tags=["resources"])
+
+
+def _apply_floor_plan_location(
+    resource: Resource,
+    floor_value: str,
+    db: Session,
+):
+    plan = db.query(FloorPlan).filter(FloorPlan.floor == floor_value).first()
+    if not plan:
+        raise HTTPException(status_code=400, detail="Select an existing floor plan floor first")
+    resource.floor = plan.floor
+    resource.building = plan.building
 
 
 def _enrich_resource(
@@ -28,6 +45,15 @@ def _enrich_resource(
     out.is_available = True
     out.is_mine = False
     out.reserved_by = None
+    out.is_favorite = (
+        db.query(Favorite)
+        .filter(
+            Favorite.user_id == current_user.id,
+            Favorite.resource_id == resource.id,
+        )
+        .first()
+        is not None
+    )
 
     if booking_date:
         reservation = (
@@ -69,12 +95,105 @@ def list_resources(
     return [_enrich_resource(r, booking_date, current_user, db) for r in resources]
 
 
+@router.get("/recommendations/team", response_model=TeamDeskRecommendation)
+def recommend_near_team(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.team_name:
+        resources = db.query(Resource).filter(Resource.is_active.is_(True)).limit(6).all()
+        return TeamDeskRecommendation(
+            team_name=None,
+            team_zone=None,
+            resources=[_enrich_resource(r, None, current_user, db) for r in resources],
+        )
+
+    teammates = (
+        db.query(User.id)
+        .filter(User.team_name == current_user.team_name, User.id != current_user.id)
+        .subquery()
+    )
+    recent_reservations = (
+        db.query(Reservation, Resource.zone)
+        .join(Resource, Reservation.resource_id == Resource.id)
+        .filter(
+            Reservation.user_id.in_(teammates),
+            Reservation.status == ReservationStatus.active,
+        )
+        .all()
+    )
+    zone = None
+    if recent_reservations:
+        zone = Counter(z for _, z in recent_reservations).most_common(1)[0][0]
+
+    query = db.query(Resource).filter(Resource.is_active.is_(True))
+    if zone:
+        query = query.filter(Resource.zone == zone)
+    resources = query.order_by(Resource.floor, Resource.name).limit(12).all()
+    return TeamDeskRecommendation(
+        team_name=current_user.team_name,
+        team_zone=zone,
+        resources=[_enrich_resource(r, None, current_user, db) for r in resources],
+    )
+
+
+@router.post("/{resource_id}/favorite", response_model=ResourceOut)
+def add_favorite(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    resource = db.get(Resource, resource_id)
+    if not resource or not resource.is_active:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    favorite = (
+        db.query(Favorite)
+        .filter(
+            Favorite.user_id == current_user.id,
+            Favorite.resource_id == resource_id,
+        )
+        .first()
+    )
+    if not favorite:
+        favorite = Favorite(user_id=current_user.id, resource_id=resource_id)
+        db.add(favorite)
+        db.commit()
+
+    return _enrich_resource(resource, None, current_user, db)
+
+
+@router.delete("/{resource_id}/favorite", response_model=ResourceOut)
+def remove_favorite(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    resource = db.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    favorite = (
+        db.query(Favorite)
+        .filter(
+            Favorite.user_id == current_user.id,
+            Favorite.resource_id == resource_id,
+        )
+        .first()
+    )
+    if favorite:
+        db.delete(favorite)
+        db.commit()
+
+    return _enrich_resource(resource, None, current_user, db)
+
+
 @router.get("/floors")
 def list_floors(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    floors = db.query(Resource.floor).distinct().order_by(Resource.floor).all()
+    floors = db.query(FloorPlan.floor).distinct().order_by(FloorPlan.floor).all()
     return [f[0] for f in floors]
 
 
@@ -98,6 +217,7 @@ def create_resource(
     _: User = Depends(require_admin),
 ):
     resource = Resource(**data.model_dump())
+    _apply_floor_plan_location(resource, data.floor, db)
     db.add(resource)
     db.commit()
     db.refresh(resource)
@@ -115,7 +235,11 @@ def update_resource(
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
     for key, value in data.model_dump(exclude_unset=True).items():
+        if key == "building":
+            continue
         setattr(resource, key, value)
+    if "floor" in data.model_dump(exclude_unset=True):
+        _apply_floor_plan_location(resource, resource.floor, db)
     db.commit()
     db.refresh(resource)
     return ResourceOut.model_validate(resource)

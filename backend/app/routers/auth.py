@@ -50,6 +50,8 @@ def register(
         full_name=data.full_name,
         role=data.role,
         job_title=data.job_title,
+        team_name=data.team_name,
+        team_leader_id=data.team_leader_id,
     )
     db.add(user)
     db.commit()

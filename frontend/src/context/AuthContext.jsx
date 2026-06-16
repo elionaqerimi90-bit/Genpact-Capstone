@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
     const { access_token, user: u } = await apiLogin(email, password);
     localStorage.setItem('token', access_token);
     setUser(u);
+    return { access_token, user: u };
   };
 
   const logout = () => {

@@ -6,6 +6,7 @@ from app.models.resource import ResourceType
 class ResourceBase(BaseModel):
     name: str
     type: ResourceType
+    building: str = "HQ - New York"
     floor: str
     zone: str
     capacity: int = 1
@@ -22,6 +23,7 @@ class ResourceCreate(ResourceBase):
 class ResourceUpdate(BaseModel):
     name: str | None = None
     type: ResourceType | None = None
+    building: str | None = None
     floor: str | None = None
     zone: str | None = None
     capacity: int | None = None
@@ -38,6 +40,7 @@ class ResourceOut(ResourceBase):
     is_available: bool | None = None
     reserved_by: str | None = None
     is_mine: bool | None = None
+    is_favorite: bool | None = None
 
     model_config = {"from_attributes": True}
 

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+const apiBaseURL = import.meta.env.VITE_API_URL?.trim() || '/api';
+const api = axios.create({ baseURL: apiBaseURL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -28,6 +29,11 @@ export async function getResources(params) {
   return data;
 }
 
+export async function getTeamDeskRecommendations() {
+  const { data } = await api.get('/resources/recommendations/team');
+  return data;
+}
+
 export async function createResource(body) {
   const { data } = await api.post('/resources', body);
   return data;
@@ -40,6 +46,16 @@ export async function updateResource(id, body) {
 
 export async function deleteResource(id) {
   await api.delete(`/resources/${id}`);
+}
+
+export async function addFavorite(resourceId) {
+  const { data } = await api.post(`/resources/${resourceId}/favorite`);
+  return data;
+}
+
+export async function removeFavorite(resourceId) {
+  const { data } = await api.delete(`/resources/${resourceId}/favorite`);
+  return data;
 }
 
 export async function updateResourcePosition(id, floor_plan_x, floor_plan_y) {
@@ -67,16 +83,30 @@ export async function getMyReservations() {
   return data;
 }
 
-export async function createReservation(resource_id, date) {
+export async function getAllReservations(date = null) {
+  const { data } = await api.get('/reservations', {
+    params: date ? { date } : {},
+  });
+  return data;
+}
+
+export async function createReservation(resource_id, date, start_time = null, end_time = null) {
   const { data } = await api.post('/reservations', {
     resource_id,
     date,
+    start_time,
+    end_time,
   });
   return data;
 }
 
 export async function cancelReservation(id) {
   const { data } = await api.delete(`/reservations/${id}`);
+  return data;
+}
+
+export async function updateReservation(id, body) {
+  const { data } = await api.put(`/reservations/${id}`, body);
   return data;
 }
 
@@ -94,6 +124,16 @@ export async function uploadFloorPlan(floor, file, building = 'HQ') {
   return data;
 }
 
+export async function updateFloorPlan(id, body) {
+  const { data } = await api.put(`/floor-plans/${id}`, body);
+  return data;
+}
+
+export async function deleteFloorPlan(id) {
+  const { data } = await api.delete(`/floor-plans/${id}`);
+  return data;
+}
+
 export async function getEmployeeSummary() {
   const { data } = await api.get('/analytics/employee-summary');
   return data;
@@ -104,8 +144,25 @@ export async function getAnalyticsDashboard() {
   return data;
 }
 
+export async function getRecentActivity() {
+  const { data } = await api.get('/analytics/recent-activity');
+  return data;
+}
+
 export async function getUsers() {
   const { data } = await api.get('/users');
+  return data;
+}
+
+export async function searchWorkspace(query) {
+  const { data } = await api.get('/users/search', {
+    params: { q: query },
+  });
+  return data;
+}
+
+export async function assignTeamMembers(leaderId, teammateIds) {
+  const { data } = await api.post(`/users/${leaderId}/team`, { teammate_ids: teammateIds });
   return data;
 }
 

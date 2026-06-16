@@ -1,33 +1,175 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import {
   createResource,
   deleteResource,
+  getFloorPlans,
   getResources,
   updateResource,
 } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
+import { ZONE_OPTIONS } from '../../lib/constants';
+
+const DESK_FEATURE_OPTIONS = [
+  'Near window',
+  'Charging station',
+  'Dual monitors',
+  'Standing desk',
+  'Ergonomic chair',
+  'Quiet zone',
+  'Near team',
+  'Near coffee bar',
+  'Docking station',
+  'Phone booth nearby',
+];
+
+const DESK_TYPE_OPTIONS = [
+  'Hot Desk',
+  'Window Desk',
+  'Focus Desk',
+  'Standing Desk',
+  'Team Pod',
+  'Executive Desk',
+  'Meeting Room',
+];
+const CAPACITY_OPTIONS = [1, 2, 4, 6, 8, 10, 12];
+const CUSTOM_VALUE = '__custom__';
 
 const emptyForm = {
   name: '',
   type: 'desk',
-  floor: '1',
+  building: 'HQ - New York',
+  floor: '',
   zone: 'Open Area',
   capacity: 1,
   desk_type: 'Hot Desk',
   amenities: '',
 };
 
+function OptionField({
+  label,
+  value,
+  options,
+  onChange,
+  customPlaceholder,
+  normalize = (nextValue) => nextValue,
+  allowCustom = true,
+}) {
+  const isCustom = value && !options.includes(value);
+  const selectValue = allowCustom && isCustom ? CUSTOM_VALUE : value;
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </label>
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          if (allowCustom && e.target.value === CUSTOM_VALUE) {
+            onChange('');
+            return;
+          }
+          onChange(normalize(e.target.value));
+        }}
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+        {allowCustom && <option value={CUSTOM_VALUE}>Custom</option>}
+      </select>
+      {allowCustom && (isCustom || value === '') && (
+        <input
+          placeholder={customPlaceholder}
+          value={value}
+          onChange={(e) => onChange(normalize(e.target.value))}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        />
+      )}
+    </div>
+  );
+}
+
 export default function Resources() {
   const [resources, setResources] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [filterFloor, setFilterFloor] = useState('');
+  const [filterBuilding, setFilterBuilding] = useState('');
+  const [floorPlans, setFloorPlans] = useState([]);
 
   const load = () => getResources().then(setResources);
+
   useEffect(() => {
     load();
+    getFloorPlans().then(setFloorPlans);
   }, []);
+
+  useEffect(() => {
+    if (!showForm || form.floor || floorOptions.length === 0) return;
+    const defaultFloor = floorOptions[0];
+    const matchingPlan = floorPlans.find((plan) => plan.floor === defaultFloor);
+    setForm((current) => ({
+      ...current,
+      floor: defaultFloor,
+      building: matchingPlan?.building ?? current.building,
+    }));
+  }, [showForm, form.floor, floorOptions, floorPlans]);
+
+  const buildingOptions = useMemo(
+    () => [...new Set(floorPlans.map((plan) => plan.building).filter(Boolean))].sort(),
+    [floorPlans],
+  );
+
+  const floorOptions = useMemo(
+    () =>
+      [...new Set(floorPlans.map((plan) => plan.floor).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b, undefined, { numeric: true }),
+      ),
+    [floorPlans],
+  );
+
+  const zoneChoices = useMemo(
+    () => [...new Set([...ZONE_OPTIONS, ...resources.map((resource) => resource.zone).filter(Boolean)])].sort(),
+    [resources],
+  );
+
+  const deskTypeChoices = useMemo(
+    () =>
+      [...new Set([...DESK_TYPE_OPTIONS, ...resources.map((resource) => resource.desk_type).filter(Boolean)])].sort(),
+    [resources],
+  );
+
+  const selectedFloorPlan = useMemo(
+    () => floorPlans.find((plan) => plan.floor === form.floor) ?? null,
+    [floorPlans, form.floor],
+  );
+
+  const visibleResources = resources.filter((resource) => {
+    if (filterBuilding && resource.building !== filterBuilding) return false;
+    if (filterFloor && resource.floor !== filterFloor) return false;
+    return true;
+  });
+
+  const selectedAmenities = useMemo(
+    () =>
+      form.amenities
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [form.amenities],
+  );
+
+  const toggleAmenity = (amenity) => {
+    const nextAmenities = selectedAmenities.includes(amenity)
+      ? selectedAmenities.filter((item) => item !== amenity)
+      : [...selectedAmenities, amenity];
+    setForm({ ...form, amenities: nextAmenities.join(', ') });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,17 +184,18 @@ export default function Resources() {
     load();
   };
 
-  const handleEdit = (r) => {
+  const handleEdit = (resource) => {
     setForm({
-      name: r.name,
-      type: r.type,
-      floor: r.floor,
-      zone: r.zone,
-      capacity: r.capacity,
-      desk_type: r.desk_type ?? '',
-      amenities: r.amenities ?? '',
+      name: resource.name,
+      type: resource.type,
+      building: resource.building ?? 'HQ - New York',
+      floor: resource.floor,
+      zone: resource.zone,
+      capacity: resource.capacity,
+      desk_type: resource.desk_type ?? '',
+      amenities: resource.amenities ?? '',
     });
-    setEditing(r.id);
+    setEditing(resource.id);
     setShowForm(true);
   };
 
@@ -66,77 +209,192 @@ export default function Resources() {
     <div>
       <PageHeader
         title="Resource Inventory"
-        subtitle="Manage desks and meeting rooms grouped by floor and zone"
+        subtitle="Manage desks, meeting rooms, HQ location, floors, and workspace zones"
         action={
-        <button
-          type="button"
-          onClick={() => {
-            setShowForm(true);
-            setEditing(null);
-            setForm(emptyForm);
-          }}
-          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          <Plus size={16} />
-          Add Resource
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              setEditing(null);
+              setForm({
+                ...emptyForm,
+                floor: floorOptions[0] ?? '',
+                building: buildingOptions[0] ?? 'HQ - New York',
+              });
+            }}
+            className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            <Plus size={16} />
+            Add Resource
+          </button>
         }
       />
+
+      <div className="card mb-4 flex flex-wrap gap-3 p-4">
+        <select
+          value={filterBuilding}
+          onChange={(e) => setFilterBuilding(e.target.value)}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        >
+          <option value="">All HQ locations</option>
+          {buildingOptions.map((building) => (
+            <option key={building} value={building}>
+              {building}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterFloor}
+          onChange={(e) => setFilterFloor(e.target.value)}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        >
+          <option value="">All floors</option>
+          {floorOptions.map((floor) => (
+            <option key={floor} value={floor}>
+              Floor {floor}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {showForm && (
         <form
           onSubmit={handleSubmit}
           className="grid gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-3"
         >
-          <input
-            placeholder="Name (e.g. Desk A-15)"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            required
-          />
-          <select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="desk">Desk</option>
-            <option value="room">Room</option>
-          </select>
-          <input
-            placeholder="Floor"
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Resource Name
+            </label>
+            <input
+              placeholder="Name (e.g. Desk A-15)"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Resource Type
+            </label>
+            <select
+              value={form.type}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  type: e.target.value,
+                  desk_type: e.target.value === 'room' ? 'Meeting Room' : form.desk_type,
+                })
+              }
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="desk">Desk</option>
+              <option value="room">Room</option>
+            </select>
+          </div>
+
+          <OptionField
+            label="Floor"
             value={form.floor}
-            onChange={(e) => setForm({ ...form, floor: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            required
+            options={floorOptions}
+            onChange={(value) => {
+              const matchingPlan = floorPlans.find((plan) => plan.floor === value);
+              setForm({
+                ...form,
+                floor: value,
+                building: matchingPlan?.building ?? '',
+              });
+            }}
+            customPlaceholder="Enter floor"
+            allowCustom={false}
           />
-          <input
-            placeholder="Zone"
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              HQ Location
+            </label>
+            <input
+              value={selectedFloorPlan?.building ?? form.building}
+              readOnly
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              HQ location is tied to the selected floor plan.
+            </p>
+          </div>
+
+          <OptionField
+            label="Zone"
             value={form.zone}
-            onChange={(e) => setForm({ ...form, zone: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            required
+            options={zoneChoices}
+            onChange={(value) => setForm({ ...form, zone: value })}
+            customPlaceholder="Enter zone"
           />
-          <input
-            placeholder="Desk type"
+
+          <OptionField
+            label="Desk Type"
             value={form.desk_type}
-            onChange={(e) => setForm({ ...form, desk_type: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            options={form.type === 'room' ? ['Meeting Room'] : deskTypeChoices.filter((item) => item !== 'Meeting Room')}
+            onChange={(value) => setForm({ ...form, desk_type: value })}
+            customPlaceholder={form.type === 'room' ? 'Enter room type' : 'Enter desk type'}
           />
-          <input
-            type="number"
-            placeholder="Capacity"
-            value={form.capacity}
-            onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            min={1}
-          />
-          <input
-            placeholder="Amenities (comma-separated)"
-            value={form.amenities}
-            onChange={(e) => setForm({ ...form, amenities: e.target.value })}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-2"
-          />
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Capacity
+            </label>
+            <select
+              value={String(form.capacity)}
+              onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              {CAPACITY_OPTIONS.map((capacity) => (
+                <option key={capacity} value={capacity}>
+                  {capacity} {capacity === 1 ? 'person' : 'people'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Amenities
+            </label>
+            <input
+              placeholder="Amenities (comma-separated)"
+              value={form.amenities}
+              onChange={(e) => setForm({ ...form, amenities: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Desk Feature Options
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DESK_FEATURE_OPTIONS.map((amenity) => {
+                const active = selectedAmenities.includes(amenity);
+                return (
+                  <button
+                    key={amenity}
+                    type="button"
+                    onClick={() => toggleAmenity(amenity)}
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                      active
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-slate-300 bg-white text-slate-700 hover:border-brand-300 hover:bg-brand-50'
+                    }`}
+                  >
+                    {amenity}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
             <button
               type="submit"
@@ -149,6 +407,11 @@ export default function Resources() {
               onClick={() => {
                 setShowForm(false);
                 setEditing(null);
+                setForm({
+                  ...emptyForm,
+                  floor: floorOptions[0] ?? '',
+                  building: buildingOptions[0] ?? 'HQ - New York',
+                });
               }}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm"
             >
@@ -164,6 +427,7 @@ export default function Resources() {
             <tr className="border-b bg-slate-50 text-left text-slate-500">
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">HQ Location</th>
               <th className="px-4 py-3 font-medium">Floor</th>
               <th className="px-4 py-3 font-medium">Zone</th>
               <th className="px-4 py-3 font-medium">Desk Type</th>
@@ -171,25 +435,26 @@ export default function Resources() {
             </tr>
           </thead>
           <tbody>
-            {resources.map((r) => (
-              <tr key={r.id} className="border-b border-slate-100">
-                <td className="px-4 py-3 font-medium">{r.name}</td>
-                <td className="px-4 py-3 capitalize">{r.type}</td>
-                <td className="px-4 py-3">{r.floor}</td>
-                <td className="px-4 py-3">{r.zone}</td>
-                <td className="px-4 py-3">{r.desk_type ?? '—'}</td>
+            {visibleResources.map((resource) => (
+              <tr key={resource.id} className="border-b border-slate-100">
+                <td className="px-4 py-3 font-medium">{resource.name}</td>
+                <td className="px-4 py-3 capitalize">{resource.type}</td>
+                <td className="px-4 py-3">{resource.building ?? 'HQ - New York'}</td>
+                <td className="px-4 py-3">{resource.floor}</td>
+                <td className="px-4 py-3">{resource.zone}</td>
+                <td className="px-4 py-3">{resource.desk_type ?? '-'}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => handleEdit(r)}
+                      onClick={() => handleEdit(resource)}
                       className="text-brand-600 hover:underline"
                     >
                       Edit
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(r.id)}
+                      onClick={() => handleDelete(resource.id)}
                       className="text-red-600 hover:text-red-700"
                     >
                       <Trash2 size={16} />

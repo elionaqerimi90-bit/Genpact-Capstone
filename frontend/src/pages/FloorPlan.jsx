@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDays, format } from 'date-fns';
-import { Calendar, Filter, Layers } from 'lucide-react';
+import { Calendar, Filter, Layers, LocateFixed } from 'lucide-react';
 import {
+  addFavorite,
   createReservation,
   getFloorPlans,
   getFloors,
   getResources,
+  getTeamDeskRecommendations,
   getZones,
+  removeFavorite,
 } from '../api/client';
 import DeskDetailPanel from '../components/DeskDetailPanel';
+import ResourceDetailsModal from '../components/ResourceDetailsModal';
 import PageHeader from '../components/ui/PageHeader';
 import { ZONE_OPTIONS } from '../lib/constants';
 
@@ -22,17 +26,32 @@ const STATUS = {
 
 export default function FloorPlan() {
   const [searchParams] = useSearchParams();
+  const resourceId = searchParams.get('resourceId');
+  const floorFromQuery = searchParams.get('floor') ?? '';
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [floor, setFloor] = useState('');
+  const [floor, setFloor] = useState(floorFromQuery);
   const [zoneFilters, setZoneFilters] = useState([]);
   const [type, setType] = useState(searchParams.get('type') ?? '');
+  const nearTeam = searchParams.get('nearTeam') === '1';
   const [floors, setFloors] = useState([]);
   const [zones, setZones] = useState([]);
   const [resources, setResources] = useState([]);
   const [plans, setPlans] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [teamHint, setTeamHint] = useState('');
   const [message, setMessage] = useState('');
+  const [reservationMode, setReservationMode] = useState('all_day');
+  const [roomStartTime, setRoomStartTime] = useState('09:00');
+  const [roomEndTime, setRoomEndTime] = useState('17:00');
+
+  useEffect(() => {
+    if (floorFromQuery && floorFromQuery !== floor) {
+      setFloor(floorFromQuery);
+    }
+  }, [floorFromQuery, floor]);
 
   useEffect(() => {
     getFloors().then((f) => {
@@ -49,6 +68,21 @@ export default function FloorPlan() {
   const zone = zoneFilters.length === 1 ? zoneFilters[0] : undefined;
 
   useEffect(() => {
+    if (nearTeam) {
+      getTeamDeskRecommendations().then((data) => {
+        setTeamHint(
+          data.team_zone
+            ? `Team desks are usually near ${data.team_zone}`
+            : 'No team desk history yet, showing a broad set of suggestions',
+        );
+        setResources(data.resources);
+        if (data.resources?.length && !floor) {
+          setFloor(data.resources[0].floor);
+        }
+      });
+      return;
+    }
+
     getResources({
       date,
       floor: floor || undefined,
@@ -61,7 +95,26 @@ export default function FloorPlan() {
           : data;
       setResources(filtered);
     });
-  }, [date, floor, zone, zoneFilters, type]);
+  }, [date, floor, zone, zoneFilters, type, nearTeam]);
+
+  useEffect(() => {
+    if (selected?.type !== 'room') {
+      setReservationMode('all_day');
+      return;
+    }
+    if (reservationMode !== 'slot' && reservationMode !== 'all_day') {
+      setReservationMode('all_day');
+    }
+  }, [selected, reservationMode]);
+
+  useEffect(() => {
+    if (!resourceId || !resources.length) return;
+
+    const match = resources.find((resource) => String(resource.id) === resourceId);
+    if (match) {
+      setSelected(match);
+    }
+  }, [resourceId, resources]);
 
   const plan = plans.find((p) => p.floor === floor);
   const maxDate = format(addDays(new Date(), 14), 'yyyy-MM-dd');
@@ -84,7 +137,9 @@ export default function FloorPlan() {
     setBooking(true);
     setMessage('');
     try {
-      await createReservation(selected.id, date);
+      const startTime = selected.type === 'room' && reservationMode === 'slot' ? roomStartTime : null;
+      const endTime = selected.type === 'room' && reservationMode === 'slot' ? roomEndTime : null;
+      await createReservation(selected.id, date, startTime, endTime);
       setMessage('Reservation confirmed successfully!');
       const updated = await getResources({
         date,
@@ -94,6 +149,7 @@ export default function FloorPlan() {
       });
       setResources(updated);
       setSelected(null);
+      setDetailsOpen(false);
     } catch (err) {
       const msg =
         err?.response?.data?.detail ??
@@ -104,12 +160,61 @@ export default function FloorPlan() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!selected) return;
+    setFavoriteBusy(true);
+    setMessage('');
+    try {
+      const updated = selected.is_favorite
+        ? await removeFavorite(selected.id)
+        : await addFavorite(selected.id);
+      setSelected(updated);
+      setResources((prev) =>
+        prev.map((r) => (r.id === updated.id ? updated : r)),
+      );
+      const refreshed = await getResources({
+        date,
+        floor: floor || undefined,
+        zone,
+        type: type || undefined,
+      });
+      const filtered =
+        zoneFilters.length > 1
+          ? refreshed.filter((r) => zoneFilters.includes(r.zone))
+          : refreshed;
+      setResources(filtered);
+      setSelected((prev) =>
+        prev && filtered.some((r) => r.id === prev.id)
+          ? filtered.find((r) => r.id === prev.id) ?? updated
+          : updated,
+      );
+    } catch (err) {
+      setMessage(String(err?.response?.data?.detail ?? 'Could not update favorites.'));
+    } finally {
+      setFavoriteBusy(false);
+    }
+  };
+
+  const openDetails = () => {
+    setDetailsOpen(true);
+  };
+
+  const closeDetails = () => {
+    setDetailsOpen(false);
+  };
+
   return (
     <div>
       <PageHeader
         title="Interactive Floor Plan"
         subtitle="Browse availability and reserve desks or meeting rooms visually"
       />
+      {nearTeam && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+          <LocateFixed size={16} />
+          {teamHint || 'Finding desks near your team...'}
+        </div>
+      )}
 
       <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
         <div>
@@ -239,11 +344,33 @@ export default function FloorPlan() {
             date={date}
             onClose={() => setSelected(null)}
             onBook={handleBook}
+            onMoreDetails={openDetails}
             booking={booking}
+            favoriteBusy={favoriteBusy}
+            onToggleFavorite={handleToggleFavorite}
+            reservationMode={reservationMode}
+            setReservationMode={setReservationMode}
+            roomStartTime={roomStartTime}
+            setRoomStartTime={setRoomStartTime}
+            roomEndTime={roomEndTime}
+            setRoomEndTime={setRoomEndTime}
             message={message}
           />
         )}
       </div>
+
+      {selected && detailsOpen && (
+        <ResourceDetailsModal
+          desk={selected}
+          resources={resources}
+          selectedDate={date}
+          onClose={closeDetails}
+          onBook={handleBook}
+          onToggleFavorite={handleToggleFavorite}
+          favoriteBusy={favoriteBusy}
+          booking={booking}
+        />
+      )}
 
       <div className="card mt-4 overflow-hidden">
         <div className="border-b border-slate-100 px-6 py-4">

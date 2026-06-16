@@ -13,6 +13,8 @@ class UserCreate(BaseModel):
     full_name: str
     role: UserRole = UserRole.employee
     job_title: str | None = None
+    team_name: str | None = None
+    team_leader_id: int | None = None
 
 
 class UserOut(BaseModel):
@@ -22,6 +24,8 @@ class UserOut(BaseModel):
     full_name: str
     role: UserRole
     job_title: str | None = None
+    team_name: str | None = None
+    team_leader_id: int | None = None
 
     model_config = {"from_attributes": True}
 

@@ -2,18 +2,25 @@ import { Calendar, Heart, MapPin, Star, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AMENITY_ICONS, DESK_IMAGES } from '../lib/constants';
 
-
 export default function DeskDetailPanel({
   desk,
   date,
   onClose,
   onBook,
+  onMoreDetails,
   booking,
   message,
+  favoriteBusy,
+  onToggleFavorite,
+  reservationMode,
+  setReservationMode,
+  roomStartTime,
+  setRoomStartTime,
+  roomEndTime,
+  setRoomEndTime,
 }) {
-  const image =
-    DESK_IMAGES[desk.desk_type ?? ''] ?? DESK_IMAGES.default;
-  const amenities = desk.amenities?.split(',').map((a) => a.trim()) ?? [];
+  const image = DESK_IMAGES[desk.desk_type ?? ''] ?? DESK_IMAGES.default;
+  const amenities = desk.amenities?.split(',').map((a) => a.trim()).filter(Boolean) ?? [];
 
   return (
     <div className="card-elevated flex w-80 shrink-0 flex-col overflow-hidden lg:w-96">
@@ -41,9 +48,7 @@ export default function DeskDetailPanel({
           Floor {desk.floor} &gt; {desk.zone}
         </p>
         <h3 className="mt-1 text-xl font-bold text-slate-900">{desk.name}</h3>
-        {desk.desk_type && (
-          <p className="text-sm text-slate-500">{desk.desk_type}</p>
-        )}
+        {desk.desk_type && <p className="text-sm text-slate-500">{desk.desk_type}</p>}
 
         <div className="mt-3 flex flex-wrap gap-2">
           {desk.is_mine ? (
@@ -62,10 +67,10 @@ export default function DeskDetailPanel({
 
         {amenities.length > 0 && (
           <ul className="mt-4 space-y-2.5 border-t border-slate-100 pt-4">
-            {amenities.map((a) => (
-              <li key={a} className="flex gap-3 text-sm">
-                <span className="text-base">{AMENITY_ICONS[a] ?? '✓'}</span>
-                <span className="text-slate-700">{a}</span>
+            {amenities.map((amenity) => (
+              <li key={amenity} className="flex gap-3 text-sm">
+                <span className="text-base">{AMENITY_ICONS[amenity] ?? '•'}</span>
+                <span className="text-slate-700">{amenity}</span>
               </li>
             ))}
           </ul>
@@ -74,19 +79,82 @@ export default function DeskDetailPanel({
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
           <Calendar size={16} className="text-brand-600" />
           <span>
-            Booking for{' '}
-            <strong>{format(parseISO(date), 'EEEE, MMM d')}</strong>
+            Booking for <strong>{format(parseISO(date), 'EEEE, MMM d')}</strong>
           </span>
         </div>
+
+        {desk.type === 'room' && (
+          <div className="mt-3 space-y-3 rounded-lg border border-slate-200 p-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setReservationMode('all_day')}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium ${
+                  reservationMode === 'all_day'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                All day
+              </button>
+              <button
+                type="button"
+                onClick={() => setReservationMode('slot')}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium ${
+                  reservationMode === 'slot'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                Time slot
+              </button>
+            </div>
+            {reservationMode === 'slot' && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Start
+                  </span>
+                  <input
+                    type="time"
+                    value={roomStartTime}
+                    onChange={(e) => setRoomStartTime(e.target.value)}
+                    className="input-field"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    End
+                  </span>
+                  <input
+                    type="time"
+                    value={roomEndTime}
+                    onChange={(e) => setRoomEndTime(e.target.value)}
+                    className="input-field"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        )}
 
         {desk.is_available && !desk.is_mine && (
           <button type="button" onClick={onBook} disabled={booking} className="btn-primary mt-4 w-full">
             <Calendar size={16} />
-            {booking ? 'Reserving…' : 'Reserve Now'}
+            {booking ? 'Reserving...' : 'Reserve Now'}
           </button>
         )}
-        <button type="button" className="btn-secondary mt-2 w-full">
-          <Heart size={16} /> Add to Favorites
+        <button type="button" onClick={onMoreDetails} className="btn-secondary mt-2 w-full">
+          More details
+        </button>
+        <button
+          type="button"
+          onClick={onToggleFavorite}
+          disabled={favoriteBusy}
+          className="btn-secondary mt-2 w-full"
+        >
+          <Heart size={16} fill={desk.is_favorite ? 'currentColor' : 'none'} />
+          {desk.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}
         </button>
 
         {message && (

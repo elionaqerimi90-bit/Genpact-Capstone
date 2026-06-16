@@ -16,6 +16,7 @@ import {
   Armchair,
   Building2,
   CalendarCheck,
+  LocateFixed,
   Map,
   Percent,
   Plus,
@@ -115,6 +116,9 @@ export default function Dashboard() {
             </Link>
             <Link to="/floor-plan?type=room" className="btn-secondary w-full py-3">
               <Building2 size={18} /> Reserve Room
+            </Link>
+            <Link to="/floor-plan?nearTeam=1" className="btn-secondary w-full py-3">
+              <LocateFixed size={18} /> Find me a desk near my team
             </Link>
             <Link to="/floor-plan" className="btn-secondary w-full py-3">
               <Map size={18} /> View Floor Plan

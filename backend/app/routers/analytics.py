@@ -23,6 +23,21 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
+def _recent_activity_for_user(db: Session, current_user: User) -> list[str]:
+    query = (
+        db.query(Reservation)
+        .options(joinedload(Reservation.resource), joinedload(Reservation.user))
+        .order_by(Reservation.id.desc())
+    )
+    if current_user.role not in (UserRole.admin, UserRole.manager):
+        query = query.filter(Reservation.user_id == current_user.id)
+    recent = query.limit(8).all()
+    return [
+        f"{r.user.full_name} booked {r.resource.name} for {r.date} ({r.status.value})"
+        for r in recent
+    ]
+
+
 @router.get("/dashboard", response_model=AnalyticsDashboard)
 def dashboard(
     db: Session = Depends(get_db),
@@ -144,17 +159,7 @@ def dashboard(
         for name, count in sorted(desk_bookings, key=lambda x: x[1])[:5]
     ]
 
-    recent = (
-        db.query(Reservation)
-        .options(joinedload(Reservation.resource), joinedload(Reservation.user))
-        .order_by(Reservation.id.desc())
-        .limit(8)
-        .all()
-    )
-    recent_activity = [
-        f"{r.user.full_name} booked {r.resource.name} for {r.date} ({r.status.value})"
-        for r in recent
-    ]
+    recent_activity = _recent_activity_for_user(db, _)
 
     return AnalyticsDashboard(
         total_desks=total_desks,
@@ -168,6 +173,14 @@ def dashboard(
         least_used_desks=least_used,
         recent_activity=recent_activity,
     )
+
+
+@router.get("/recent-activity", response_model=list[str])
+def recent_activity(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _recent_activity_for_user(db, current_user)
 
 
 @router.get("/employee-summary")
