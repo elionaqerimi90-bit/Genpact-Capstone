@@ -6,7 +6,7 @@ const ROLE_LABELS = {
   employee: 'Employee',
   team_leader: 'Team Leader',
   manager: 'Manager',
-  admin: 'Office Manager (Admin)',
+  admin: 'Office Manager',
 };
 
 export default function Users() {
@@ -107,10 +107,10 @@ export default function Users() {
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             className="input-field sm:col-span-2"
           >
-            <option value="employee">Employee - rezervon vetem per vete</option>
-            <option value="team_leader">Team Leader - bookon per ekipin</option>
-            <option value="manager">Manager - analytics + rezervime</option>
-            <option value="admin">Office Manager - menaxhon gjithcka</option>
+            <option value="employee">Employee</option>
+            <option value="team_leader">Team Leader</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Office Manager</option>
           </select>
           <button type="submit" className="btn-primary sm:col-span-2">
             Create User
