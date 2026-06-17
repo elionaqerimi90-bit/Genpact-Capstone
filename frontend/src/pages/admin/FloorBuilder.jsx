@@ -67,6 +67,12 @@ export default function FloorBuilder() {
     getResources({ floor }).then(setResources).catch(() => setResources([]));
   }, [floor]);
 
+  const plan = plans.find((item) => item.floor === floor) ?? null;
+  const headerTitle = plan ? `Floor Plan Builder - Floor ${plan.floor}` : 'Floor Plan Builder';
+  const headerSubtitle = plan
+    ? `Upload, rename, replace, and manage the ${plan.building} floor plan while positioning resources`
+    : 'Upload, rename, replace, and manage HQ floor plans while positioning resources';
+
   useEffect(() => {
     if (!floor) return;
     setResourceForm((current) => ({
@@ -75,12 +81,6 @@ export default function FloorBuilder() {
       building: current.building || plan?.building || 'HQ - Prishtina',
     }));
   }, [floor, plan]);
-
-  const plan = plans.find((item) => item.floor === floor) ?? null;
-  const headerTitle = plan ? `Floor Plan Builder - Floor ${plan.floor}` : 'Floor Plan Builder';
-  const headerSubtitle = plan
-    ? `Upload, rename, replace, and manage the ${plan.building} floor plan while positioning resources`
-    : 'Upload, rename, replace, and manage HQ floor plans while positioning resources';
 
   useEffect(() => {
     if (editingPlanId) return;

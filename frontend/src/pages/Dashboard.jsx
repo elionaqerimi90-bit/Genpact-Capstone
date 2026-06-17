@@ -24,10 +24,12 @@ import {
 import { getEmployeeSummary, getMyReservations } from '../api/client';
 import KpiCard from '../components/ui/KpiCard';
 import PageHeader from '../components/ui/PageHeader';
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     getEmployeeSummary().then(setSummary);
@@ -117,9 +119,11 @@ export default function Dashboard() {
             <Link to="/floor-plan?type=room" className="btn-secondary w-full py-3">
               <Building2 size={18} /> Reserve Room
             </Link>
-            <Link to="/floor-plan?nearTeam=1" className="btn-secondary w-full py-3">
-              <LocateFixed size={18} /> Find me a desk near my team
-            </Link>
+            {user?.role === 'employee' && user?.team_name && (
+              <Link to="/floor-plan?nearTeam=1" className="btn-secondary w-full py-3">
+                <LocateFixed size={18} /> Find me a desk near my team
+              </Link>
+            )}
             <Link to="/floor-plan" className="btn-secondary w-full py-3">
               <Map size={18} /> View Floor Plan
             </Link>

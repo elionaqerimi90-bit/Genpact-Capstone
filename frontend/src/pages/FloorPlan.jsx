@@ -58,6 +58,7 @@ export default function FloorPlan() {
   const [showRecurring, setShowRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(0);
   const { user } = useAuth();
+  const canUseTeamDeskFinder = user?.role === 'employee' && Boolean(user?.team_name);
 
   useEffect(() => {
     if (floorFromQuery && floorFromQuery !== floor) {
@@ -80,7 +81,7 @@ export default function FloorPlan() {
   const zone = zoneFilters.length === 1 ? zoneFilters[0] : undefined;
 
   useEffect(() => {
-    if (nearTeam) {
+    if (nearTeam && canUseTeamDeskFinder) {
       getTeamDeskRecommendations().then((data) => {
       setTeamHint(
           data.team_zone
@@ -109,7 +110,7 @@ export default function FloorPlan() {
           : data;
       setResources(user?.role === 'employee' ? filtered.filter((r) => r.type !== 'room') : filtered);
     });
-  }, [date, floor, zone, zoneFilters, type, nearTeam, user?.role]);
+  }, [date, floor, zone, zoneFilters, type, nearTeam, user?.role, canUseTeamDeskFinder]);
 
   useEffect(() => {
     if (selected?.type !== 'room') {
@@ -297,10 +298,15 @@ export default function FloorPlan() {
         title="Interactive Floor Plan"
         subtitle="Browse availability and reserve desks or meeting rooms visually"
       />
-      {nearTeam && (
+      {nearTeam && canUseTeamDeskFinder && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
           <LocateFixed size={16} />
           {teamHint || 'Finding desks near your team...'}
+        </div>
+      )}
+      {nearTeam && !canUseTeamDeskFinder && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Team desk recommendations are available only to employees who are assigned to a team.
         </div>
       )}
 

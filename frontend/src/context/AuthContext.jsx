@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role === 'admin';
   const isManager = user?.role === 'manager';
   const canViewAnalytics = isAdmin || isManager;
+  const isEmployeeInTeam = user?.role === 'employee' && Boolean(user?.team_name);
 
   return (
     <AuthContext.Provider
@@ -60,6 +61,7 @@ export function AuthProvider({ children }) {
         isAdmin,
         isManager,
         canViewAnalytics,
+        isEmployeeInTeam,
       }}
     >
       {children}
