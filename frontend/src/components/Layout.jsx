@@ -8,6 +8,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Armchair,
   Map,
   Search,
   UserCircle2,
@@ -15,11 +16,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getRecentActivity, searchWorkspace } from '../api/client';
+import BrandMark from './BrandMark';
 
 const employeeLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/reservations', icon: Calendar, label: 'My Reservations' },
-  { to: '/floor-plan', icon: Map, label: 'Floor Plan' },
+  { to: '/floor-plan', icon: Armchair, label: 'Reserve Seat' },
 ];
 
 const managerLinks = [
@@ -113,15 +115,7 @@ export default function Layout() {
     <div className="flex min-h-screen bg-surface">
       <aside className="flex w-[260px] shrink-0 flex-col bg-brand-900 text-white">
         <div className="border-b border-white/10 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold shadow-lg">
-              D
-            </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight">DeskDibs</span>
-              <p className="text-[11px] text-brand-200">Hot-desking platform</p>
-            </div>
-          </div>
+          <BrandMark showWordmark />
         </div>
 
         <nav className="flex-1 space-y-1 p-4">

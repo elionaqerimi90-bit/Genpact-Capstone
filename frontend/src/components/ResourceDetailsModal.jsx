@@ -213,7 +213,7 @@ export default function ResourceDetailsModal({
               className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft size={16} />
-              Back to Floor Plan
+              Back to Reserve
             </button>
             <h3 className="text-xl font-semibold text-slate-900">Explore Desk Types</h3>
             <p className="mt-1 text-sm text-slate-500">Select a resource style to preview it</p>

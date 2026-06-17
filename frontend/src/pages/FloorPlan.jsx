@@ -491,17 +491,17 @@ export default function FloorPlan() {
             <div className="mt-5 max-h-[60vh] overflow-auto rounded-2xl border border-slate-200 p-4">
               <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Recurrence
+                  Repeat this day
                 </label>
                 <select
                   value={recurringWeeks}
                   onChange={(e) => setRecurringWeeks(Number(e.target.value))}
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  <option value={0}>This week only</option>
-                  <option value={1}>2 weeks total</option>
-                  <option value={3}>4 weeks total</option>
-                  <option value={7}>8 weeks total</option>
+                  <option value={0}>Just this Friday / selected day</option>
+                  <option value={1}>Every week for 2 weeks</option>
+                  <option value={3}>Every week for 4 weeks</option>
+                  <option value={7}>Every week for 8 weeks</option>
                 </select>
               </div>
               {teamMembers.length === 0 ? (
@@ -565,17 +565,18 @@ export default function FloorPlan() {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <h3 className="text-2xl font-bold text-slate-900">Recurring reservation</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Repeat the desk booking weekly starting {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}.
+              Repeat this desk every {format(new Date(date + 'T12:00:00'), 'EEEE')} starting{' '}
+              {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}.
             </p>
             <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Repeat for
+              Repeat every selected day for
             </label>
             <select
               value={recurringWeeks}
               onChange={(e) => setRecurringWeeks(Number(e.target.value))}
               className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
-              <option value={0}>This week only</option>
+              <option value={0}>Only this {format(new Date(date + 'T12:00:00'), 'EEEE')}</option>
               <option value={1}>2 weeks total</option>
               <option value={3}>4 weeks total</option>
               <option value={7}>8 weeks total</option>
