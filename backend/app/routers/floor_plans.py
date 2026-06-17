@@ -7,7 +7,11 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from vercel.blob import AsyncBlobClient
+
+try:
+    from vercel.blob import AsyncBlobClient
+except ModuleNotFoundError:
+    AsyncBlobClient = None
 
 from app.auth import get_current_user, require_admin
 from app.config import settings
@@ -71,7 +75,7 @@ async def upload_floor_plan(
 
     content = await file.read()
     blob_url = None
-    if os.getenv("BLOB_READ_WRITE_TOKEN"):
+    if os.getenv("BLOB_READ_WRITE_TOKEN") and AsyncBlobClient is not None:
         client = AsyncBlobClient()
         blob = await client.put(
             f"floor-plans/{filename}",
