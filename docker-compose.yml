@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/deskdibs.db
+      VITE_API_URL: http://backend:8002/api
+    volumes:
+      - backend-data:/data
+      - backend-uploads:/app/uploads
+    ports:
+      - "8002:8002"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: http://backend:8002/api
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  backend-data:
+  backend-uploads:

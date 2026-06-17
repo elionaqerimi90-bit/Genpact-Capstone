@@ -6,8 +6,11 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.search import SearchResults, SearchResourceResult, SearchUserResult
 from app.schemas import TeamAssignment
-from app.schemas.auth import UserOut
+from app.schemas.auth import UserOut, UserUpdate
 from app.models.resource import Resource
+from app.models.reservation import Reservation
+from app.models.favorite import Favorite
+from app.models.user import UserRole
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -110,3 +113,67 @@ def assign_team_members(
     db.commit()
     db.refresh(leader)
     return leader
+
+
+@router.get("/me", response_model=UserOut)
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user
+
+
+@router.put("/{user_id}", response_model=UserOut)
+def update_user(
+    user_id: int,
+    data: UserUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if data.full_name is not None:
+        user.full_name = data.full_name
+    if data.role is not None:
+        user.role = data.role
+    if data.job_title is not None:
+        user.job_title = data.job_title
+    if data.team_name is not None:
+        user.team_name = data.team_name
+    if data.team_leader_id is not None:
+        leader = db.get(User, data.team_leader_id)
+        if not leader or leader.role != UserRole.team_leader:
+            raise HTTPException(status_code=400, detail="Invalid team leader")
+        user.team_leader_id = data.team_leader_id
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.query(User).filter(User.team_leader_id == user.id).update(
+        {User.team_leader_id: None}, synchronize_session=False
+    )
+    db.query(Reservation).filter(Reservation.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.query(Favorite).filter(Favorite.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.delete(user)
+    db.commit()
+    return {"detail": "User deleted"}

@@ -35,7 +35,7 @@ export default function Analytics() {
         title="Analytics"
         subtitle="30-day occupancy, utilization trends and desk performance"
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Occupancy Rate', value: `${data.occupancy_rate}%` },
           { label: 'Utilization (30d)', value: `${Math.round(data.occupancy_trend.reduce((s, d) => s + d.occupancy, 0) / 30)}%` },
@@ -52,7 +52,7 @@ export default function Analytics() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 font-semibold">Occupancy Over Time (30 days)</h3>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data.occupancy_trend}>
@@ -65,7 +65,7 @@ export default function Analytics() {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-8 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Booking Activity by Day</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -105,7 +105,7 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-8 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Top Booked Desks</h3>
           <table className="w-full text-sm">

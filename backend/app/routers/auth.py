@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import os
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -11,9 +13,16 @@ from app.auth import (
     require_admin,
     verify_password,
 )
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import PasswordResetRequest, Token, UserCreate, UserOut
+from app.schemas.auth import (
+    PasswordResetRequest,
+    Token,
+    UserCreate,
+    UserCreateResponse,
+    UserOut,
+)
 from app.services.notifications import (
     build_reset_link,
     generate_reset_token,
@@ -46,7 +55,40 @@ def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/register", response_model=UserOut)
+@router.put("/me", response_model=UserOut)
+async def update_me(
+    full_name: str | None = Form(None),
+    current_password: str | None = Form(None),
+    new_password: str | None = Form(None),
+    profile_image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if full_name is not None:
+        current_user.full_name = full_name.strip() or current_user.full_name
+
+    if new_password:
+        if not current_password or not verify_password(current_password, current_user.hashed_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        current_user.hashed_password = hash_password(new_password)
+
+    if profile_image is not None:
+        ext = Path(profile_image.filename or "").suffix.lower()
+        if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+            raise HTTPException(status_code=400, detail="Only PNG/JPG/WebP images allowed")
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        filename = f"profile-{current_user.id}{ext}"
+        filepath = Path(settings.upload_dir) / filename
+        content = await profile_image.read()
+        filepath.write_bytes(content)
+        current_user.profile_image_path = f"/uploads/{filename}"
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/register", response_model=UserCreateResponse)
 def register(
     data: UserCreate,
     db: Session = Depends(get_db),
@@ -89,7 +131,9 @@ def register(
             ]
         ),
     )
-    return user
+    return UserCreateResponse.model_validate(
+        {**UserOut.model_validate(user).model_dump(), "temporary_password": temporary_password}
+    )
 
 
 @router.post("/reset-password")

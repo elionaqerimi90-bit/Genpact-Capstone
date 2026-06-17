@@ -10,6 +10,7 @@ import {
   LogOut,
   Map,
   Search,
+  UserCircle2,
   Users,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +33,7 @@ const adminLinks = [
   { to: '/admin/builder', icon: Map, label: 'Floor Builder' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/admin/users', icon: Users, label: 'Users' },
+  { to: '/profile', icon: UserCircle2, label: 'Profile' },
 ];
 
 export default function Layout() {
@@ -196,9 +198,17 @@ export default function Layout() {
 
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold">
-              {user?.full_name?.charAt(0)}
-            </div>
+            <NavLink
+              to="/profile"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold"
+              aria-label="Profile"
+            >
+              {user?.profile_image_path ? (
+                <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
+              ) : (
+                user?.full_name?.charAt(0)
+              )}
+            </NavLink>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{user?.full_name}</p>
               <p className="truncate text-xs text-brand-300">
@@ -360,9 +370,21 @@ export default function Layout() {
                 <p className="text-sm font-semibold text-slate-900">{user?.full_name}</p>
                 <p className="text-xs text-slate-500">{user?.job_title ?? user?.role}</p>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white ring-2 ring-brand-100">
-                {user?.full_name?.charAt(0)}
-              </div>
+              <NavLink
+                to="/profile"
+                className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden bg-brand-600 text-sm font-semibold text-white ring-2 ring-brand-100"
+                aria-label="Profile"
+              >
+                {user?.profile_image_path ? (
+                  <img
+                    src={user.profile_image_path}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  user?.full_name?.charAt(0)
+                )}
+              </NavLink>
             </div>
           </div>
         </header>

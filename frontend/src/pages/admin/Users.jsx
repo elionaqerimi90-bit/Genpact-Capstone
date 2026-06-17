@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { assignTeamMembers, getUsers, registerUser } from '../../api/client';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  assignTeamMembers,
+  deleteUser,
+  getUsers,
+  registerUser,
+  updateUser,
+} from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
 
 const ROLE_LABELS = {
@@ -9,36 +15,97 @@ const ROLE_LABELS = {
   admin: 'Office Manager',
 };
 
+const EMPTY_FORM = {
+  email: '',
+  full_name: '',
+  job_title: '',
+  role: 'employee',
+};
+
 export default function Users() {
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({
-    email: '',
-    full_name: '',
-    job_title: '',
-    role: 'employee',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
   const [teamAssignments, setTeamAssignments] = useState({});
+  const [feedback, setFeedback] = useState(null);
+  const [createdPassword, setCreatedPassword] = useState('');
+
+  const editingUser = useMemo(
+    () => users.find((user) => user.id === editingUserId) ?? null,
+    [users, editingUserId]
+  );
 
   const load = () => getUsers().then(setUsers);
+
   useEffect(() => {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!editingUser) return;
+    setForm({
+      email: editingUser.email,
+      full_name: editingUser.full_name,
+      job_title: editingUser.job_title ?? '',
+      role: editingUser.role,
+    });
+    setShowForm(true);
+  }, [editingUser]);
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setEditingUserId(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await registerUser({
-      ...form,
+    setFeedback(null);
+    setCreatedPassword('');
+    const payload = {
+      full_name: form.full_name,
       job_title: form.job_title || undefined,
-    });
-    setForm({
-      email: '',
-      full_name: '',
-      job_title: '',
-      role: 'employee',
-    });
-    setShowForm(false);
+      role: form.role,
+    };
+
+    if (editingUserId) {
+      await updateUser(editingUserId, payload);
+      setFeedback({ type: 'success', text: 'User updated successfully.' });
+    } else {
+      const created = await registerUser({
+        ...form,
+        job_title: form.job_title || undefined,
+      });
+      setCreatedPassword(created.temporary_password || '');
+      setFeedback({
+        type: 'success',
+        text: 'User created successfully.',
+      });
+    }
+
+    resetForm();
     load();
+  };
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`Delete ${user.full_name}? This cannot be undone.`)) return;
+    setFeedback(null);
+    await deleteUser(user.id);
+    setFeedback({ type: 'success', text: 'User deleted.' });
+    if (editingUserId === user.id) resetForm();
+    load();
+  };
+
+  const handleEdit = (user) => {
+    setEditingUserId(user.id);
+    setForm({
+      email: user.email,
+      full_name: user.full_name,
+      job_title: user.job_title ?? '',
+      role: user.role,
+    });
+    setShowForm(true);
   };
 
   const handleSyncTeam = async (leaderId) => {
@@ -67,13 +134,54 @@ export default function Users() {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Menaxho punonjësit, team leaders, menaxherët dhe office manager-in"
+        subtitle="Menaxho punonjësit dhe rolet e aksesit"
         action={
-          <button type="button" onClick={() => setShowForm(!showForm)} className="btn-primary">
+          <button
+            type="button"
+            onClick={() => {
+              setEditingUserId(null);
+              setForm(EMPTY_FORM);
+              setShowForm(!showForm);
+            }}
+            className="btn-primary"
+          >
             Add User
           </button>
         }
       />
+
+      {feedback && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {feedback.text}
+        </div>
+      )}
+
+      {createdPassword && (
+        <div className="mb-4 rounded-xl border border-brand-200 bg-brand-50 px-4 py-4 text-sm text-brand-900">
+          <p className="font-semibold">Temporary password</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <code className="rounded-lg bg-white px-3 py-2 text-sm font-semibold tracking-wide text-slate-900 shadow-sm">
+              {createdPassword}
+            </code>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(createdPassword)}
+              className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+            >
+              Copy password
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-brand-700">
+            Share this password with the user so they can sign in and change it on first login.
+          </p>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card mb-6 grid gap-4 p-6 sm:grid-cols-2">
@@ -91,6 +199,7 @@ export default function Users() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="input-field"
             required
+            disabled={Boolean(editingUserId)}
           />
           <input
             placeholder="Job title (e.g. Senior Manager)"
@@ -112,9 +221,18 @@ export default function Users() {
             <option value="manager">Manager</option>
             <option value="admin">Office Manager</option>
           </select>
-          <button type="submit" className="btn-primary sm:col-span-2">
-            Create User
-          </button>
+          <div className="flex gap-3 sm:col-span-2">
+            <button type="submit" className="btn-primary">
+              {editingUserId ? 'Save Changes' : 'Create User'}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg border border-slate-200 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
@@ -127,6 +245,7 @@ export default function Users() {
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Access</th>
               <th className="px-4 py-3">Team</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -176,6 +295,25 @@ export default function Users() {
                   ) : (
                     <span className="text-slate-400">—</span>
                   )}
+                </td>
+                <td className="px-4 py-3.5">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(u)}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u)}
+                      disabled={u.role === 'admin' && u.email === 'sarah.chen@genpact.com'}
+                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

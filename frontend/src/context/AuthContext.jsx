@@ -41,6 +41,12 @@ export function AuthProvider({ children }) {
     return { access_token, user: u };
   };
 
+  const refreshUser = async () => {
+    const me = await getMe();
+    setUser(me);
+    return me;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -57,6 +63,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
+        refreshUser,
         logout,
         isAdmin,
         isManager,

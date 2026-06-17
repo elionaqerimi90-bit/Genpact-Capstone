@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy import text
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import Base, engine
 from app.models import Favorite, FloorPlan, Reservation, Resource, User
@@ -12,6 +13,7 @@ from app.routers import analytics, auth, floor_plans, reservations, resources, u
 os.makedirs(settings.upload_dir, exist_ok=True)
 
 app = FastAPI(title="DeskDibs API", version="1.0.0")
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +54,8 @@ def startup():
                 conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires_at DATETIME"))
             if "must_change_password" not in user_col_names:
                 conn.execute(text("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0"))
+            if "profile_image_path" not in user_col_names:
+                conn.execute(text("ALTER TABLE users ADD COLUMN profile_image_path VARCHAR(255)"))
 
             resource_cols = conn.execute(text("PRAGMA table_info(resources)")).fetchall()
             resource_col_names = {c[1] for c in resource_cols}

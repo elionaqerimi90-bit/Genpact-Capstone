@@ -24,6 +24,13 @@ export async function getMe() {
   return data;
 }
 
+export async function updateMe(body) {
+  const { data } = await api.put('/auth/me', body, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
+
 export async function getResources(params) {
   const { data } = await api.get('/resources', { params });
   return data;
@@ -152,6 +159,16 @@ export async function getRecentActivity() {
 
 export async function getUsers() {
   const { data } = await api.get('/users');
+  return data;
+}
+
+export async function updateUser(userId, body) {
+  const { data } = await api.put(`/users/${userId}`, body);
+  return data;
+}
+
+export async function deleteUser(userId) {
+  const { data } = await api.delete(`/users/${userId}`);
   return data;
 }
 
