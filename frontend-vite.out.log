@@ -8,3 +8,32 @@
   [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m3000[22m/[39m
 [2m11:44:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Users.jsx, /src/index.css[22m
 [2m11:45:16 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Users.jsx, /src/index.css[22m
+[2m11:54:48 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/context/AuthContext.jsx, /src/pages/admin/Users.jsx, /src/pages/ResetPassword.jsx, /src/pages/admin/Analytics.jsx, /src/pages/Reservations.jsx, /src/pages/admin/Reservations.jsx, /src/pages/admin/AdminDashboard.jsx, /src/pages/Dashboard.jsx, /src/pages/admin/FloorBuilder.jsx, /src/pages/admin/Resources.jsx, /src/components/Layout.jsx, /src/pages/FloorPlan.jsx[22m
+[2m11:54:48 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:54:48 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/Dashboard.jsx, /src/components/ProtectedRoute.jsx, /src/pages/Login.jsx, /src/components/Layout.jsx, /src/pages/FloorPlan.jsx[22m
+[2m11:54:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Users.jsx, /src/index.css[22m
+[2m11:55:20 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Users.jsx, /src/index.css[22m
+[2m11:56:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/context/AuthContext.jsx, /src/pages/ResetPassword.jsx, /src/pages/admin/Analytics.jsx, /src/pages/Reservations.jsx, /src/pages/admin/Reservations.jsx, /src/pages/admin/AdminDashboard.jsx, /src/pages/Dashboard.jsx, /src/pages/admin/FloorBuilder.jsx, /src/pages/admin/Resources.jsx, /src/components/Layout.jsx, /src/pages/FloorPlan.jsx, /src/pages/admin/Users.jsx[22m
+[2m11:56:45 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:56:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/Dashboard.jsx, /src/components/ProtectedRoute.jsx, /src/pages/Login.jsx, /src/components/Layout.jsx, /src/pages/FloorPlan.jsx[22m
+[2m11:56:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Layout.jsx, /src/index.css[22m
+[2m11:56:57 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Layout.jsx, /src/index.css[22m
+[2m11:57:00 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m11:57:14 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/Profile.jsx[22m
+[2m11:57:20 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx, /src/index.css[22m
+[2m11:57:20 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m11:57:20 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/Dashboard.jsx, /src/components/ProtectedRoute.jsx, /src/pages/Login.jsx, /src/components/Layout.jsx, /src/pages/FloorPlan.jsx, /src/pages/Profile.jsx[22m
+[2m11:57:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Profile.jsx, /src/index.css[22m
+[2m11:59:28 AM[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m11:59:28 AM[22m [36m[1m[vite][22m[39m server restarted.
+[2m12:15:52 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Users.jsx, /src/index.css[22m
+[2m12:16:21 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Analytics.jsx, /src/index.css[22m
+[2m12:16:51 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Analytics.jsx, /src/index.css[22m
+[2m12:19:21 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Layout.jsx, /src/index.css[22m
+[2m12:19:26 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx, /src/index.css[22m
+[2m12:19:34 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mpublic/favicon.svg[22m
+[2m12:20:25 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/BrandMark.jsx, /src/index.css[22m
+[2m12:21:53 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Layout.jsx, /src/index.css[22m
+[2m12:21:57 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ResourceDetailsModal.jsx, /src/index.css[22m
+[2m12:22:50 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/FloorPlan.jsx, /src/index.css[22m
+[2m12:23:43 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Layout.jsx, /src/index.css[22m
