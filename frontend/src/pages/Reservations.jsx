@@ -105,7 +105,8 @@ export default function ReservationsPage() {
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="font-semibold text-slate-900">Booking History</h3>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-6 py-3">Resource</th>
@@ -137,6 +138,7 @@ export default function ReservationsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

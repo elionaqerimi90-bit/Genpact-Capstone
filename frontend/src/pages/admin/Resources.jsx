@@ -422,7 +422,8 @@ export default function Resources() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-[820px] w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-slate-500">
               <th className="px-4 py-3 font-medium">Name</th>
@@ -465,6 +466,7 @@ export default function Resources() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

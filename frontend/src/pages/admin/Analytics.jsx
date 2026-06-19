@@ -66,7 +66,7 @@ export default function Analytics() {
       </div>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Booking Activity by Day</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={heatmapDays}>
@@ -79,7 +79,7 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Utilization by Floor</h3>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
@@ -106,9 +106,10 @@ export default function Analytics() {
       </div>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Top Booked Desks</h3>
-          <table className="w-full text-sm">
+          <div className="max-w-full overflow-x-auto">
+          <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b text-left text-slate-500">
                 <th className="pb-2">Desk</th>
@@ -126,11 +127,13 @@ export default function Analytics() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Least Used Desks</h3>
-          <table className="w-full text-sm">
+          <div className="max-w-full overflow-x-auto">
+          <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b text-left text-slate-500">
                 <th className="pb-2">Desk</th>
@@ -148,6 +151,7 @@ export default function Analytics() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

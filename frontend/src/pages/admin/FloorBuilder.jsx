@@ -443,8 +443,8 @@ export default function FloorBuilder() {
             )}
           </div>
 
-          <div className="flex gap-4">
-            <div className="card w-56 shrink-0 space-y-2 p-4">
+          <div className="flex flex-col gap-4 xl:flex-row">
+            <div className="card max-h-72 w-full shrink-0 space-y-2 overflow-auto p-4 xl:max-h-none xl:w-56">
               <h4 className="text-sm font-semibold">Resources on floor {floor || '-'}</h4>
               {resources.map((resource) => (
                 <button
@@ -471,7 +471,7 @@ export default function FloorBuilder() {
             <div
               ref={canvasRef}
               onClick={handleCanvasClick}
-              className="relative min-h-[520px] flex-1 cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-100"
+              className="relative min-h-[360px] flex-1 cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-100 sm:min-h-[460px] xl:min-h-[520px]"
             >
               {plan ? (
                 <img src={plan.image_url} alt="" className="h-full w-full object-contain" />

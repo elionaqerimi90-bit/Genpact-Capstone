@@ -17,6 +17,7 @@ import {
 } from '../api/client';
 import DeskDetailPanel from '../components/DeskDetailPanel';
 import ResourceDetailsModal from '../components/ResourceDetailsModal';
+import FloorPlanCanvas from '../components/FloorPlanCanvas';
 import PageHeader from '../components/ui/PageHeader';
 import { ZONE_OPTIONS } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
@@ -310,8 +311,8 @@ export default function FloorPlan() {
         </div>
       )}
 
-      <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
-        <div>
+      <div className="card mb-4 grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="min-w-0">
           <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <Calendar size={12} /> Date
           </label>
@@ -321,17 +322,17 @@ export default function FloorPlan() {
             min={format(new Date(), 'yyyy-MM-dd')}
             max={maxDate}
             onChange={(e) => setDate(e.target.value)}
-            className="input-field w-auto"
+            className="input-field"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <Layers size={12} /> Floor
           </label>
           <select
             value={floor}
             onChange={(e) => setFloor(e.target.value)}
-            className="input-field w-auto min-w-[140px]"
+            className="input-field"
           >
             {floors.map((f) => (
               <option key={f} value={f}>
@@ -340,14 +341,14 @@ export default function FloorPlan() {
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Resource Type
           </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="input-field w-auto min-w-[140px]"
+            className="input-field"
           >
             <option value="">All resources</option>
             <option value="desk">Desks only</option>
@@ -356,7 +357,7 @@ export default function FloorPlan() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row">
         <aside className="card hidden w-56 shrink-0 p-4 lg:block">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Filter size={16} /> Zones
@@ -391,14 +392,12 @@ export default function FloorPlan() {
           </div>
         </aside>
 
-        <div className="relative min-h-[520px] flex-1 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner">
-          {plan ? (
-            <img
-              src={plan.image_url}
-              alt={`Floor ${floor}`}
-              className="absolute inset-0 h-full w-full object-cover opacity-50"
-            />
-          ) : (
+        <FloorPlanCanvas
+          imageUrl={plan?.image_url}
+          imageAlt={`Floor ${floor}`}
+          resources={resources}
+          className="min-h-[360px] flex-1 bg-white shadow-inner sm:min-h-[460px] xl:min-h-[520px]"
+          emptyState={
             <div
               className="absolute inset-0 opacity-20"
               style={{
@@ -407,30 +406,26 @@ export default function FloorPlan() {
                 backgroundSize: '40px 40px',
               }}
             />
-          )}
+          }
+          renderPin={(r, { left, top }) => {
+            const status = getStatus(r);
+            const s = STATUS[status];
+            return (
+              <button
+                key={r.id}
+                type="button"
+                title={`${r.name} - ${s.label}`}
+                onClick={() => setSelected(r)}
+                style={{ left, top }}
+                className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-125 ${s.dot} ${s.ring}`}
+              />
+            );
+          }}
+        >
           <div className="absolute left-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow backdrop-blur">
-            Floor {floor} · {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}
+            Floor {floor} - {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}
           </div>
-          {resources
-            .filter((r) => r.floor_plan_x != null && r.floor_plan_y != null)
-            .map((r) => {
-              const status = getStatus(r);
-              const s = STATUS[status];
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  title={`${r.name} — ${s.label}`}
-                  onClick={() => setSelected(r)}
-                  style={{
-                    left: `${r.floor_plan_x}%`,
-                    top: `${r.floor_plan_y}%`,
-                  }}
-                  className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-125 ${s.dot} ${s.ring}`}
-                />
-              );
-            })}
-        </div>
+        </FloorPlanCanvas>
 
         {selected && (
           <DeskDetailPanel
@@ -605,7 +600,8 @@ export default function FloorPlan() {
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="font-semibold text-slate-900">All Resources</h3>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-6 py-3">Name</th>
@@ -641,7 +637,9 @@ export default function FloorPlan() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
 }
+

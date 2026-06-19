@@ -11,6 +11,9 @@ __pycache__/
 # Alembic cache
 alembic/versions/__pycache__/
 
+# Local SQLite database
+*.db
+
 # IDE files
 .vscode/
 .idea/

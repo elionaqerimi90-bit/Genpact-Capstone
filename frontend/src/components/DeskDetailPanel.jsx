@@ -30,7 +30,7 @@ export default function DeskDetailPanel({
   const amenities = desk.amenities?.split(',').map((a) => a.trim()).filter(Boolean) ?? [];
 
   return (
-    <div className="card-elevated flex w-80 shrink-0 flex-col overflow-hidden lg:w-96">
+    <div className="card-elevated flex w-full shrink-0 flex-col overflow-hidden xl:w-96">
       <div className="relative h-44 overflow-hidden">
         <img src={image} alt={desk.name} className="h-full w-full object-cover" />
         <button

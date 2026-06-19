@@ -237,7 +237,8 @@ export default function Users() {
       )}
 
       <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3">Name</th>
@@ -319,6 +320,7 @@ export default function Users() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
