@@ -10,9 +10,11 @@ import {
   LogOut,
   Armchair,
   Map,
+  Menu,
   Search,
   UserCircle2,
   Users,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getRecentActivity, searchWorkspace } from '../api/client';
@@ -47,6 +49,7 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ resources: [], users: [] });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileLinks = [
     ...employeeLinks,
     ...(isManager && !isAdmin ? managerLinks : []),
@@ -55,6 +58,10 @@ export default function Layout() {
 
   useEffect(() => {
     getRecentActivity().then(setRecentActivity).catch(() => setRecentActivity([]));
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -240,10 +247,13 @@ export default function Layout() {
             </div>
             <button
               type="button"
-              onClick={handleLogout}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+              onClick={() => setMobileMenuOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+              aria-label="Open menu"
+              aria-expanded={mobileMenuOpen}
             >
-              Sign out
+              <Menu size={16} />
+              Menu
             </button>
           </div>
 
@@ -407,32 +417,90 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto px-4 py-5 pb-24 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-auto px-4 py-5 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        <div className="flex gap-1 overflow-x-auto overscroll-x-contain pb-1">
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-label="Close menu backdrop"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-[min(84vw,320px)] flex-col bg-brand-900 text-white shadow-2xl transition-transform duration-200 lg:hidden ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        aria-hidden={!mobileMenuOpen}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <BrandMark showWordmark />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="rounded-lg border border-white/10 p-2 text-brand-100 hover:bg-white/10 hover:text-white"
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="border-b border-white/10 p-4">
+          <NavLink
+            to="/profile"
+            className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3"
+          >
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold">
+              {user?.profile_image_path ? (
+                <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
+              ) : (
+                user?.full_name?.charAt(0)
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{user?.full_name}</span>
+              <span className="block truncate text-xs text-brand-300">
+                {user?.job_title ?? user?.role}
+              </span>
+            </span>
+          </NavLink>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {mobileLinks.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/' || to === '/admin'}
               className={({ isActive }) =>
-                `flex min-w-[76px] flex-none flex-col items-center justify-center rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
+                `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition ${
                   isActive
-                    ? 'bg-brand-600 text-white'
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-brand-600 text-white shadow-md'
+                    : 'text-brand-100 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
               <Icon size={18} strokeWidth={1.9} />
-              <span className="mt-1 max-w-[72px] truncate">{label}</span>
+              {label}
             </NavLink>
           ))}
+        </nav>
+
+        <div className="border-t border-white/10 p-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm text-brand-200 transition hover:bg-white/10 hover:text-white"
+          >
+            <LogOut size={18} />
+            Sign out
+          </button>
         </div>
-      </nav>
+      </aside>
     </div>
   );
 }
