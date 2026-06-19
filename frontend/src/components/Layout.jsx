@@ -6,6 +6,7 @@ import {
   Building2,
   Calendar,
   ChevronDown,
+  Menu,
   LayoutDashboard,
   LogOut,
   Armchair,
@@ -47,6 +48,7 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ resources: [], users: [] });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     getRecentActivity().then(setRecentActivity).catch(() => setRecentActivity([]));
@@ -111,119 +113,110 @@ export default function Layout() {
   const hasSearchResults =
     searchResults.resources.length > 0 || searchResults.users.length > 0;
 
+  const navSections = [
+    { title: 'Workspace', links: employeeLinks, show: true },
+    { title: 'Management', links: managerLinks, show: isManager && !isAdmin },
+    { title: 'Administration', links: adminLinks, show: isAdmin },
+  ];
+
+  const sideNav = (
+    <>
+      <div className="border-b border-white/10 px-6 py-5">
+        <BrandMark showWordmark />
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+        {navSections
+          .filter((section) => section.show)
+          .map((section) => (
+            <div key={section.title}>
+              <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300 first:mt-0">
+                {section.title}
+              </p>
+              {section.links.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/' || to === '/admin'}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                      isActive
+                        ? 'bg-brand-600 text-white shadow-md'
+                        : 'text-brand-100 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon size={18} strokeWidth={1.75} />
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+      </nav>
+
+      <div className="border-t border-white/10 p-4">
+        <NavLink
+          to="/profile"
+          onClick={() => setMenuOpen(false)}
+          className="mb-3 flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5"
+        >
+          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold">
+            {user?.profile_image_path ? (
+              <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user?.full_name?.charAt(0)
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{user?.full_name}</span>
+            <span className="block truncate text-xs text-brand-300">
+              {user?.job_title ?? user?.role}
+            </span>
+          </span>
+        </NavLink>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-brand-200 transition hover:bg-white/10 hover:text-white"
+        >
+          <LogOut size={18} />
+          Sign out
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen bg-surface">
-      <aside className="flex w-[260px] shrink-0 flex-col bg-brand-900 text-white">
-        <div className="border-b border-white/10 px-6 py-5">
-          <BrandMark showWordmark />
-        </div>
-
-        <nav className="flex-1 space-y-1 p-4">
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
-            Workspace
-          </p>
-          {employeeLinks.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-brand-600 text-white shadow-md'
-                    : 'text-brand-100 hover:bg-white/10 hover:text-white'
-                }`
-              }
-            >
-              <Icon size={18} strokeWidth={1.75} />
-              {label}
-            </NavLink>
-          ))}
-
-          {isManager && !isAdmin && (
-            <>
-              <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
-                Management
-              </p>
-              {managerLinks.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                      isActive
-                        ? 'bg-brand-600 text-white shadow-md'
-                        : 'text-brand-100 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon size={18} strokeWidth={1.75} />
-                  {label}
-                </NavLink>
-              ))}
-            </>
-          )}
-
-          {isAdmin && (
-            <>
-              <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
-                Administration
-              </p>
-              {adminLinks.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/admin'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                      isActive
-                        ? 'bg-brand-600 text-white shadow-md'
-                        : 'text-brand-100 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon size={18} strokeWidth={1.75} />
-                  {label}
-                </NavLink>
-              ))}
-            </>
-          )}
-        </nav>
-
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5">
-            <NavLink
-              to="/profile"
-              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold"
-              aria-label="Profile"
-            >
-              {user?.profile_image_path ? (
-                <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
-              ) : (
-                user?.full_name?.charAt(0)
-              )}
-            </NavLink>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user?.full_name}</p>
-              <p className="truncate text-xs text-brand-300">
-                {user?.job_title ?? user?.role}
-              </p>
-            </div>
-          </div>
+      <aside className="hidden w-[260px] shrink-0 flex-col bg-brand-900 text-white lg:flex">
+        {sideNav}
+      </aside>
+      {menuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-brand-200 transition hover:bg-white/10 hover:text-white"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
+            aria-label="Close menu"
+            className="absolute inset-0 bg-slate-950/50"
+            onClick={() => setMenuOpen(false)}
+          />
+          <aside className="relative z-10 flex h-full w-[82vw] max-w-[320px] flex-col bg-brand-900 text-white shadow-2xl">
+            {sideNav}
+          </aside>
         </div>
-      </aside>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white px-6 py-3.5 shadow-sm">
-          <div className="relative max-w-md flex-1">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-3 shadow-sm lg:px-6">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="rounded-lg border border-slate-200 p-2 text-slate-700 lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="relative min-w-0 flex-1 lg:max-w-md">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -306,10 +299,10 @@ export default function Layout() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 lg:gap-3">
             <button
               type="button"
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:flex"
             >
               <Building2 size={16} className="text-brand-600" />
               HQ - Prishtina
@@ -326,9 +319,9 @@ export default function Layout() {
                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
               </button>
               {notificationsOpen && (
-                <div className="absolute right-0 top-12 z-20 w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="fixed left-4 right-4 top-16 z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">Recent Activity</h3>
                     <button
                       type="button"
                       onClick={() => setNotificationsOpen(false)}
@@ -361,7 +354,9 @@ export default function Layout() {
               {isAdmin && <span className="badge-blue">Admin</span>}
               {isManager && !isAdmin && <span className="badge-amber">Manager</span>}
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-semibold text-slate-900">{user?.full_name}</p>
+                <NavLink to="/profile" className="text-sm font-semibold text-slate-900 hover:text-brand-700">
+                  {user?.full_name}
+                </NavLink>
                 <p className="text-xs text-slate-500">{user?.job_title ?? user?.role}</p>
               </div>
               <NavLink

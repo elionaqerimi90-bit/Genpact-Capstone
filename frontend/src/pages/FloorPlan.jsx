@@ -391,13 +391,34 @@ export default function FloorPlan() {
           </div>
         </aside>
 
-        <div className="relative min-h-[520px] flex-1 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner">
+        <div className="relative flex min-h-[520px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
           {plan ? (
-            <img
-              src={plan.image_url}
-              alt={`Floor ${floor}`}
-              className="absolute inset-0 h-full w-full object-cover opacity-50"
-            />
+            <div className="relative max-h-[720px] w-full">
+              <img
+                src={plan.image_url}
+                alt={`Floor ${floor}`}
+                className="block max-h-[720px] w-full object-contain opacity-60"
+              />
+              {resources
+                .filter((r) => r.floor_plan_x != null && r.floor_plan_y != null)
+                .map((r) => {
+                  const status = getStatus(r);
+                  const s = STATUS[status];
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      title={`${r.name} - ${s.label}`}
+                      onClick={() => setSelected(r)}
+                      style={{
+                        left: `${r.floor_plan_x}%`,
+                        top: `${r.floor_plan_y}%`,
+                      }}
+                      className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-125 ${s.dot} ${s.ring}`}
+                    />
+                  );
+                })}
+            </div>
           ) : (
             <div
               className="absolute inset-0 opacity-20"
@@ -411,25 +432,6 @@ export default function FloorPlan() {
           <div className="absolute left-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow backdrop-blur">
             Floor {floor} · {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}
           </div>
-          {resources
-            .filter((r) => r.floor_plan_x != null && r.floor_plan_y != null)
-            .map((r) => {
-              const status = getStatus(r);
-              const s = STATUS[status];
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  title={`${r.name} — ${s.label}`}
-                  onClick={() => setSelected(r)}
-                  style={{
-                    left: `${r.floor_plan_x}%`,
-                    top: `${r.floor_plan_y}%`,
-                  }}
-                  className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-125 ${s.dot} ${s.ring}`}
-                />
-              );
-            })}
         </div>
 
         {selected && (
@@ -627,7 +629,7 @@ export default function FloorPlan() {
                 <td className="px-6 py-3.5 text-slate-600">{r.floor}</td>
                 <td className="px-6 py-3.5 text-slate-600">{r.zone}</td>
                 <td className="px-6 py-3.5 capitalize text-slate-600">{r.type}</td>
-                <td className="px-6 py-3.5 text-slate-600">{r.desk_type ?? '—'}</td>
+                <td className="px-6 py-3.5 text-slate-600">{r.desk_type ?? '-'}</td>
                 <td className="px-6 py-3.5">
                   {r.is_mine ? (
                     <span className="badge-blue">Mine</span>

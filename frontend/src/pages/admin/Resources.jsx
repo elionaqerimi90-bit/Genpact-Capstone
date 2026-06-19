@@ -101,6 +101,8 @@ export default function Resources() {
   const [filterFloor, setFilterFloor] = useState('');
   const [filterBuilding, setFilterBuilding] = useState('');
   const [floorPlans, setFloorPlans] = useState([]);
+  const [selectedResourceIds, setSelectedResourceIds] = useState([]);
+  const [bulkCount, setBulkCount] = useState(1);
 
   const load = () => getResources().then(setResources);
 
@@ -177,10 +179,19 @@ export default function Resources() {
       await updateResource(editing, form);
       setEditing(null);
     } else {
-      await createResource(form);
+      const count = Math.max(1, Number(bulkCount) || 1);
+      await Promise.all(
+        Array.from({ length: count }, (_, index) =>
+          createResource({
+            ...form,
+            name: count === 1 ? form.name : `${form.name} ${index + 1}`,
+          }),
+        ),
+      );
     }
     setForm(emptyForm);
     setShowForm(false);
+    setBulkCount(1);
     load();
   };
 
@@ -202,6 +213,25 @@ export default function Resources() {
   const handleDelete = async (id) => {
     if (!confirm('Remove this resource? Active bookings will be flagged.')) return;
     await deleteResource(id);
+    setSelectedResourceIds((current) => current.filter((resourceId) => resourceId !== id));
+    load();
+  };
+
+  const toggleResourceSelection = (id) => {
+    setSelectedResourceIds((current) =>
+      current.includes(id) ? current.filter((resourceId) => resourceId !== id) : [...current, id],
+    );
+  };
+
+  const toggleAllVisible = (checked) => {
+    setSelectedResourceIds(checked ? visibleResources.map((resource) => resource.id) : []);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedResourceIds.length) return;
+    if (!confirm(`Remove ${selectedResourceIds.length} selected resources? Active bookings will be flagged.`)) return;
+    await Promise.all(selectedResourceIds.map((id) => deleteResource(id)));
+    setSelectedResourceIds([]);
     load();
   };
 
@@ -395,12 +425,31 @@ export default function Resources() {
             </div>
           </div>
 
+          {!editing && (
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Bulk Quantity
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={bulkCount}
+                onChange={(e) => setBulkCount(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Names will be numbered when creating more than one.
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
             <button
               type="submit"
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white"
             >
-              {editing ? 'Update' : 'Create'}
+              {editing ? 'Update' : bulkCount > 1 ? `Create ${bulkCount}` : 'Create'}
             </button>
             <button
               type="button"
@@ -421,10 +470,32 @@ export default function Resources() {
         </form>
       )}
 
+      {selectedResourceIds.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+          <span>{selectedResourceIds.length} resources selected</span>
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            Delete selected
+          </button>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-slate-500">
+              <th className="px-4 py-3 font-medium">
+                <input
+                  type="checkbox"
+                  checked={visibleResources.length > 0 && selectedResourceIds.length === visibleResources.length}
+                  onChange={(e) => toggleAllVisible(e.target.checked)}
+                  className="rounded border-slate-300 text-brand-600"
+                  aria-label="Select all visible resources"
+                />
+              </th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">HQ Location</th>
@@ -437,6 +508,15 @@ export default function Resources() {
           <tbody>
             {visibleResources.map((resource) => (
               <tr key={resource.id} className="border-b border-slate-100">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedResourceIds.includes(resource.id)}
+                    onChange={() => toggleResourceSelection(resource.id)}
+                    className="rounded border-slate-300 text-brand-600"
+                    aria-label={`Select ${resource.name}`}
+                  />
+                </td>
                 <td className="px-4 py-3 font-medium">{resource.name}</td>
                 <td className="px-4 py-3 capitalize">{resource.type}</td>
                 <td className="px-4 py-3">{resource.building ?? 'HQ - Prishtina'}</td>

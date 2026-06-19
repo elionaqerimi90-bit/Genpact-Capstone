@@ -468,40 +468,45 @@ export default function FloorBuilder() {
               )}
             </div>
 
-            <div
-              ref={canvasRef}
-              onClick={handleCanvasClick}
-              className="relative min-h-[520px] flex-1 cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-100"
-            >
+            <div className="flex min-h-[520px] flex-1 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-100 p-3">
               {plan ? (
-                <img src={plan.image_url} alt="" className="h-full w-full object-contain" />
+                <div
+                  ref={canvasRef}
+                  onClick={handleCanvasClick}
+                  className="relative max-h-[720px] w-full cursor-crosshair"
+                >
+                  <img src={plan.image_url} alt="" className="block max-h-[720px] w-full object-contain" />
+                  {resources
+                    .filter((resource) => resource.floor_plan_x != null && resource.floor_plan_y != null)
+                    .map((resource) => (
+                      <div
+                        key={resource.id}
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={(event) => {
+                          event.stopPropagation();
+                          setDragging(resource.id);
+                        }}
+                        onMouseMove={(e) => dragging === resource.id && handleDrag(e, resource)}
+                        onMouseUp={() => dragging === resource.id && handleDragEnd(resource)}
+                        onMouseLeave={() => dragging === resource.id && handleDragEnd(resource)}
+                        style={{
+                          left: `${resource.floor_plan_x}%`,
+                          top: `${resource.floor_plan_y}%`,
+                        }}
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full px-2 py-1 text-xs font-medium text-white ${
+                          selected?.id === resource.id ? 'bg-yellow-500 ring-2 ring-yellow-300' : 'bg-brand-600'
+                        }`}
+                      >
+                        {resource.name}
+                      </div>
+                    ))}
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-slate-400">
                   Upload a floor plan image to get started
                 </div>
               )}
-              {resources
-                .filter((resource) => resource.floor_plan_x != null && resource.floor_plan_y != null)
-                .map((resource) => (
-                  <div
-                    key={resource.id}
-                    role="button"
-                    tabIndex={0}
-                    onMouseDown={() => setDragging(resource.id)}
-                    onMouseMove={(e) => dragging === resource.id && handleDrag(e, resource)}
-                    onMouseUp={() => dragging === resource.id && handleDragEnd(resource)}
-                    onMouseLeave={() => dragging === resource.id && handleDragEnd(resource)}
-                    style={{
-                      left: `${resource.floor_plan_x}%`,
-                      top: `${resource.floor_plan_y}%`,
-                    }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full px-2 py-1 text-xs font-medium text-white ${
-                      selected?.id === resource.id ? 'bg-yellow-500 ring-2 ring-yellow-300' : 'bg-brand-600'
-                    }`}
-                  >
-                    {resource.name}
-                  </div>
-                ))}
             </div>
           </div>
         </div>

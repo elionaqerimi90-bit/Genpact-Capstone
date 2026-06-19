@@ -11,7 +11,6 @@ import PageHeader from '../../components/ui/PageHeader';
 const ROLE_LABELS = {
   employee: 'Employee',
   team_leader: 'Team Leader',
-  manager: 'Manager',
   admin: 'Office Manager',
 };
 
@@ -134,7 +133,7 @@ export default function Users() {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Menaxho punonjësit dhe rolet e aksesit"
+        subtitle="Manage employees and access roles"
         action={
           <button
             type="button"
@@ -186,7 +185,7 @@ export default function Users() {
       {showForm && (
         <form onSubmit={handleSubmit} className="card mb-6 grid gap-4 p-6 sm:grid-cols-2">
           <input
-            placeholder="Full name (e.g. Ana Gashi)"
+            placeholder="Full name"
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             className="input-field"
@@ -194,7 +193,7 @@ export default function Users() {
           />
           <input
             type="email"
-            placeholder="Email (emer.mbiemer@genpact.com)"
+            placeholder="Email address"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="input-field"
@@ -202,15 +201,11 @@ export default function Users() {
             disabled={Boolean(editingUserId)}
           />
           <input
-            placeholder="Job title (e.g. Senior Manager)"
+            placeholder="Job title"
             value={form.job_title}
             onChange={(e) => setForm({ ...form, job_title: e.target.value })}
             className="input-field"
           />
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500 sm:col-span-2">
-            A temporary passcode and password reset email will be sent automatically after
-            creation.
-          </div>
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -218,7 +213,6 @@ export default function Users() {
           >
             <option value="employee">Employee</option>
             <option value="team_leader">Team Leader</option>
-            <option value="manager">Manager</option>
             <option value="admin">Office Manager</option>
           </select>
           <div className="flex gap-3 sm:col-span-2">

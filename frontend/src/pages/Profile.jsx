@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMe, updateMe } from '../api/client';
+import { updateMe } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/ui/PageHeader';
 
