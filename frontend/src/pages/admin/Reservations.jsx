@@ -66,7 +66,7 @@ export default function AdminReservations() {
   return (
     <div>
       <PageHeader
-        title="Reservations"
+        title="All Employee Reservations"
         subtitle="Review, edit and cancel employee and room bookings"
         action={
           <div className="flex items-center gap-3">

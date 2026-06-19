@@ -31,7 +31,7 @@ const managerLinks = [
 
 const adminLinks = [
   { to: '/admin', icon: LayoutDashboard, label: 'Admin Dashboard' },
-  { to: '/admin/reservations', icon: Calendar, label: 'Reservations' },
+  { to: '/admin/reservations', icon: Calendar, label: 'All Employee Reservations' },
   { to: '/admin/resources', icon: Building2, label: 'Resources' },
   { to: '/admin/builder', icon: Map, label: 'Floor Builder' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },

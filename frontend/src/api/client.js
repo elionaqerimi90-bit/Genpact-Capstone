@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
 
 export async function login(email, password) {
   const form = new URLSearchParams();
-  form.append('username', email);
+  form.append('username', email.trim().toLowerCase());
   form.append('password', password);
   const { data } = await api.post('/auth/login', form, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -123,10 +123,11 @@ export async function getFloorPlans() {
   return data;
 }
 
-export async function uploadFloorPlan(floor, file, building = 'HQ') {
+export async function uploadFloorPlan(floor, file, building = 'HQ', name = '') {
   const form = new FormData();
   form.append('floor', floor);
   form.append('building', building);
+  if (name) form.append('name', name);
   form.append('file', file);
   const { data } = await api.post('/floor-plans', form);
   return data;

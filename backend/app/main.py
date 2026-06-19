@@ -1,7 +1,7 @@
-import os
 from pathlib import Path
+import os
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -30,56 +30,76 @@ app.include_router(floor_plans.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
+
+def _column_names(conn, table_name: str) -> set[str]:
+    inspector = inspect(conn)
+    return {column["name"] for column in inspector.get_columns(table_name)}
+
+
+def _add_column_if_missing(conn, table_name: str, column_name: str, column_definition: str):
+    if column_name not in _column_names(conn, table_name):
+        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"))
+
+
+def _ensure_database_schema():
+    Base.metadata.create_all(bind=engine)
+
+    dialect = engine.dialect.name
+    is_sqlite = dialect == "sqlite"
+    with engine.begin() as conn:
+        _add_column_if_missing(conn, "users", "team_name", "VARCHAR(150)")
+        _add_column_if_missing(conn, "users", "team_leader_id", "INTEGER")
+        _add_column_if_missing(conn, "users", "password_reset_token_hash", "VARCHAR(255)")
+        _add_column_if_missing(
+            conn,
+            "users",
+            "password_reset_expires_at",
+            "DATETIME" if is_sqlite else "TIMESTAMP WITH TIME ZONE",
+        )
+        _add_column_if_missing(
+            conn,
+            "users",
+            "must_change_password",
+            "BOOLEAN DEFAULT 0" if is_sqlite else "BOOLEAN DEFAULT false",
+        )
+        _add_column_if_missing(conn, "users", "profile_image_path", "VARCHAR(255)")
+
+        _add_column_if_missing(conn, "reservations", "start_time", "TIME")
+        _add_column_if_missing(conn, "reservations", "end_time", "TIME")
+
+        _add_column_if_missing(
+            conn,
+            "resources",
+            "building",
+            "VARCHAR(120) DEFAULT 'HQ - Prishtina'",
+        )
+        conn.execute(text("UPDATE resources SET building = 'HQ - Prishtina' WHERE building IS NULL"))
+
+        _add_column_if_missing(conn, "floor_plans", "name", "VARCHAR(150)")
+        conn.execute(text("UPDATE floor_plans SET name = 'Floor ' || floor WHERE name IS NULL"))
+
+        if is_sqlite and "image_path" in _column_names(conn, "floor_plans"):
+            plans = conn.execute(text("SELECT id, image_path FROM floor_plans")).fetchall()
+            uploads_dir = Path(settings.upload_dir).resolve()
+            for plan_id, image_path in plans:
+                if not image_path:
+                    continue
+                path = Path(image_path)
+                if not path.is_absolute():
+                    resolved = (uploads_dir / path.name).resolve()
+                    conn.execute(
+                        text("UPDATE floor_plans SET image_path = :path WHERE id = :id"),
+                        {"path": str(resolved), "id": plan_id},
+                    )
+
+
 @app.on_event("startup")
 def startup():
-    Base.metadata.create_all(bind=engine)
-    if engine.dialect.name == "sqlite":
-        with engine.begin() as conn:
-            user_cols = conn.execute(text("PRAGMA table_info(users)")).fetchall()
-            user_col_names = {c[1] for c in user_cols}
-            if "team_name" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN team_name VARCHAR(150)"))
-            if "team_leader_id" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN team_leader_id INTEGER"))
-
-            reservation_cols = conn.execute(text("PRAGMA table_info(reservations)")).fetchall()
-            reservation_col_names = {c[1] for c in reservation_cols}
-            if "start_time" not in reservation_col_names:
-                conn.execute(text("ALTER TABLE reservations ADD COLUMN start_time TIME"))
-            if "end_time" not in reservation_col_names:
-                conn.execute(text("ALTER TABLE reservations ADD COLUMN end_time TIME"))
-            if "password_reset_token_hash" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_token_hash VARCHAR(255)"))
-            if "password_reset_expires_at" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires_at DATETIME"))
-            if "must_change_password" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0"))
-            if "profile_image_path" not in user_col_names:
-                conn.execute(text("ALTER TABLE users ADD COLUMN profile_image_path VARCHAR(255)"))
-
-            resource_cols = conn.execute(text("PRAGMA table_info(resources)")).fetchall()
-            resource_col_names = {c[1] for c in resource_cols}
-            if "building" not in resource_col_names:
-                conn.execute(text("ALTER TABLE resources ADD COLUMN building VARCHAR(120) DEFAULT 'HQ - Prishtina'"))
-                conn.execute(text("UPDATE resources SET building = 'HQ - Prishtina' WHERE building IS NULL"))
-
-            floor_plan_cols = conn.execute(text("PRAGMA table_info(floor_plans)")).fetchall()
-            floor_plan_col_names = {c[1] for c in floor_plan_cols}
-            if "image_path" in floor_plan_col_names:
-                plans = conn.execute(text("SELECT id, image_path FROM floor_plans")).fetchall()
-                uploads_dir = Path(settings.upload_dir).resolve()
-                for plan_id, image_path in plans:
-                    if not image_path:
-                        continue
-                    path = Path(image_path)
-                    if not path.is_absolute():
-                        resolved = (uploads_dir / path.name).resolve()
-                        conn.execute(
-                            text("UPDATE floor_plans SET image_path = :path WHERE id = :id"),
-                            {"path": str(resolved), "id": plan_id},
-                        )
+    _ensure_database_schema()
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    return {"status": "ok", "database": "ok", "dialect": engine.dialect.name}

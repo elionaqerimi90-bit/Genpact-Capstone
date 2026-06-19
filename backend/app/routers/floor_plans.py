@@ -49,6 +49,7 @@ def list_floor_plans(
     return [
         FloorPlanOut(
             id=p.id,
+            name=p.name,
             building=p.building,
             floor=p.floor,
             image_url=api_url(f"/api/floor-plans/{p.id}/image"),
@@ -60,6 +61,7 @@ def list_floor_plans(
 @router.post("", response_model=FloorPlanOut)
 async def upload_floor_plan(
     floor: str = Form(...),
+    name: str | None = Form(None),
     building: str = Form("HQ - Prishtina"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -94,18 +96,25 @@ async def upload_floor_plan(
             if os.path.exists(existing.image_path):
                 os.remove(existing.image_path)
         existing.image_path = blob_url or filepath
+        existing.name = name.strip() if name and name.strip() else existing.name
         existing.building = building
         db.commit()
         db.refresh(existing)
         plan = existing
     else:
-        plan = FloorPlan(building=building, floor=floor, image_path=blob_url or filepath)
+        plan = FloorPlan(
+            name=name.strip() if name and name.strip() else f"Floor {floor}",
+            building=building,
+            floor=floor,
+            image_path=blob_url or filepath,
+        )
         db.add(plan)
         db.commit()
         db.refresh(plan)
 
     return FloorPlanOut(
         id=plan.id,
+        name=plan.name,
         building=plan.building,
         floor=plan.floor,
         image_url=api_url(f"/api/floor-plans/{plan.id}/image"),
@@ -147,6 +156,7 @@ def update_floor_plan(
         raise HTTPException(status_code=409, detail="A floor plan already exists for that floor")
 
     previous_floor = plan.floor
+    plan.name = data.name.strip() if data.name and data.name.strip() else f"Floor {data.floor}"
     plan.building = data.building
     plan.floor = data.floor
     linked_resources = db.query(Resource).filter(Resource.floor == previous_floor).all()
@@ -157,6 +167,7 @@ def update_floor_plan(
     db.refresh(plan)
     return FloorPlanOut(
         id=plan.id,
+        name=plan.name,
         building=plan.building,
         floor=plan.floor,
         image_url=api_url(f"/api/floor-plans/{plan.id}/image"),

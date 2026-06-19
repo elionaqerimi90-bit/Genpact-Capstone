@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class FloorPlanOut(BaseModel):
     id: int
+    name: str | None = None
     building: str
     floor: str
     image_url: str
@@ -11,5 +12,6 @@ class FloorPlanOut(BaseModel):
 
 
 class FloorPlanUpdate(BaseModel):
+    name: str | None = None
     building: str
     floor: str

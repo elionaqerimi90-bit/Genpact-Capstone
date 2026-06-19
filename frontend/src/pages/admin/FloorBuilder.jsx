@@ -12,6 +12,7 @@ import {
 import PageHeader from '../../components/ui/PageHeader';
 
 const emptyPlanForm = {
+  name: '',
   building: 'HQ - Prishtina',
   floor: '1',
 };
@@ -68,7 +69,7 @@ export default function FloorBuilder() {
   }, [floor]);
 
   const plan = plans.find((item) => item.floor === floor) ?? null;
-  const headerTitle = plan ? `Floor Plan Builder - Floor ${plan.floor}` : 'Floor Plan Builder';
+  const headerTitle = plan ? `Floor Plan Builder - ${plan.name || `Floor ${plan.floor}`}` : 'Floor Plan Builder';
   const headerSubtitle = plan
     ? `Upload, rename, replace, and manage the ${plan.building} floor plan while positioning resources`
     : 'Upload, rename, replace, and manage HQ floor plans while positioning resources';
@@ -85,7 +86,7 @@ export default function FloorBuilder() {
   useEffect(() => {
     if (editingPlanId) return;
     if (plan) {
-      setPlanForm({ building: plan.building, floor: plan.floor });
+      setPlanForm({ name: plan.name || `Floor ${plan.floor}`, building: plan.building, floor: plan.floor });
     } else if (floor) {
       setPlanForm((prev) => ({ ...prev, floor }));
     }
@@ -109,7 +110,11 @@ export default function FloorBuilder() {
   const startEditingPlan = (selectedPlan) => {
     setSelectedPlanId(selectedPlan.id);
     setEditingPlanId(selectedPlan.id);
-    setPlanForm({ building: selectedPlan.building, floor: selectedPlan.floor });
+    setPlanForm({
+      name: selectedPlan.name || `Floor ${selectedPlan.floor}`,
+      building: selectedPlan.building,
+      floor: selectedPlan.floor,
+    });
     setFloor(selectedPlan.floor);
     setMessage('');
   };
@@ -118,7 +123,7 @@ export default function FloorBuilder() {
     setEditingPlanId(null);
     setSelectedPlanId(null);
     if (plan) {
-      setPlanForm({ building: plan.building, floor: plan.floor });
+      setPlanForm({ name: plan.name || `Floor ${plan.floor}`, building: plan.building, floor: plan.floor });
     } else {
       setPlanForm(emptyPlanForm);
     }
@@ -132,7 +137,12 @@ export default function FloorBuilder() {
     setSavingPlan(true);
     setMessage('');
     try {
-      const uploaded = await uploadFloorPlan(planForm.floor.trim(), file, planForm.building.trim() || 'HQ - Prishtina');
+      const uploaded = await uploadFloorPlan(
+        planForm.floor.trim(),
+        file,
+        planForm.building.trim() || 'HQ - Prishtina',
+        planForm.name.trim() || `Floor ${planForm.floor.trim()}`,
+      );
       setPlans((prev) => {
         const rest = prev.filter((item) => item.id !== uploaded.id && item.floor !== uploaded.floor);
         return [...rest, uploaded].sort((a, b) => a.floor.localeCompare(b.floor, undefined, { numeric: true }));
@@ -155,6 +165,7 @@ export default function FloorBuilder() {
     setMessage('');
     try {
       const updated = await updateFloorPlan(editingPlanId, {
+        name: planForm.name.trim() || `Floor ${planForm.floor.trim()}`,
         building: planForm.building.trim() || 'HQ - Prishtina',
         floor: planForm.floor.trim(),
       });
@@ -531,6 +542,12 @@ export default function FloorBuilder() {
 
             <div className="mt-4 space-y-3">
               <input
+                value={planForm.name}
+                onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                placeholder="Floor plan name"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <input
                 value={planForm.building}
                 onChange={(e) => setPlanForm({ ...planForm, building: e.target.value })}
                 placeholder="HQ location / building"
@@ -565,7 +582,7 @@ export default function FloorBuilder() {
               ) : (
                 <p className="text-xs text-slate-500">
                   Choose a floor plan from the list below or from the floor selector, then click
-                  `Edit floor details` to rename the floor or change the building.
+                  `Edit floor details` to rename the floor plan, floor, or building.
                 </p>
               )}
             </div>
@@ -594,7 +611,7 @@ export default function FloorBuilder() {
                     }}
                       className="w-full text-left"
                     >
-                      <p className="text-sm font-medium text-slate-900">Floor {item.floor}</p>
+                      <p className="text-sm font-medium text-slate-900">{item.name || `Floor ${item.floor}`}</p>
                       <p className="text-xs text-slate-500">{item.building}</p>
                     </button>
                     <div className="mt-2 flex gap-2">

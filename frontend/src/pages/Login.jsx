@@ -13,19 +13,6 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const quickLogin = async (email, label, destination) => {
-    setError('');
-    setSubmitting(true);
-    try {
-      await login(email, 'password123');
-      navigate(destination);
-    } catch {
-      setError(`Could not sign in as ${label} right now. Please try again.`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -42,8 +29,13 @@ export default function Login() {
     try {
       const { user } = await login(email, password);
       navigate(user?.role === 'admin' ? '/admin' : '/reservations');
-    } catch {
-      setError('Incorrect email or password. Please try again.');
+    } catch (err) {
+      const status = err?.response?.status;
+      setError(
+        status === 401
+          ? 'Incorrect email or password. Please try again.'
+          : 'Sign in service is unavailable. Please check that the API is running and try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +61,7 @@ export default function Login() {
             ].map((item) => (
               <li key={item} className="flex items-center gap-3 text-base">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-sm">
-                  ✓
+                  +
                 </span>
                 {item}
               </li>
@@ -136,51 +128,6 @@ export default function Login() {
               {submitting ? 'Signing in…' : 'Sign In'}
             </button>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() =>
-                  quickLogin('sarah.chen@genpact.com', 'Admin', '/admin')
-                }
-                disabled={submitting}
-                className="btn-secondary w-full py-3"
-              >
-                Login as Admin
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  quickLogin('priya.sharma@genpact.com', 'Manager', '/admin/analytics')
-                }
-                disabled={submitting}
-                className="btn-secondary w-full py-3"
-              >
-                Login as Manager
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  quickLogin('jane.smith@genpact.com', 'Employee', '/reservations')
-                }
-                disabled={submitting}
-                className="btn-secondary w-full py-3"
-              >
-                Login as Employee
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  quickLogin('alex.morgan@genpact.com', 'Team Leader', '/reservations')
-                }
-                disabled={submitting}
-                className="btn-secondary w-full py-3"
-              >
-                Login as Team Leader
-              </button>
-            </div>
           </form>
         </div>
       </div>
