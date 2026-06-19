@@ -5,7 +5,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { getMe, login as apiLogin } from '../api/client';
+import { getMe, login as apiLogin, refreshAuthToken } from '../api/client';
 
 
 const AuthContext = createContext(null);
@@ -33,6 +33,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     loadUser();
   }, [loadUser]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const intervalId = window.setInterval(() => {
+      refreshAuthToken().catch(() => {});
+    }, 45 * 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [user]);
 
   const login = async (email, password) => {
     const { access_token, user: u } = await apiLogin(email, password);
