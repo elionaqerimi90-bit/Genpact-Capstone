@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { OFFICE_HERO } from '../lib/constants';
+import { emailDomainHint, emailValidationError } from '../lib/email';
 
 export default function Login() {
   const { user, loading, login } = useAuth();
@@ -37,12 +38,17 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const emailError = emailValidationError(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     setSubmitting(true);
     try {
       const { user } = await login(email, password);
       navigate(user?.role === 'admin' ? '/admin' : '/reservations');
-    } catch {
-      setError('Incorrect email or password. Please try again.');
+    } catch (err) {
+      setError(String(err?.response?.data?.detail ?? 'Incorrect email or password. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +105,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                placeholder={`you${emailDomainHint()}`}
                 className="input-field"
                 required
               />
@@ -178,7 +184,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() =>
-                  quickLogin('alex.morgan@genpact.com', 'Team Leader', '/reservations')
+                  quickLogin('alex.morgan@genpact.com', 'Team Leader', '/team')
                 }
                 disabled={submitting}
                 className="btn-secondary w-full py-3"
