@@ -23,6 +23,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255))
     job_title: Mapped[str | None] = mapped_column(String(150), nullable=True)
     team_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    profile_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     team_leader_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
