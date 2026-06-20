@@ -14,6 +14,7 @@ import {
 import { useMemo } from 'react';
 import { addDays, format, parseISO } from 'date-fns';
 import { DESK_IMAGES } from '../lib/constants';
+import { isResourceAvailable, isResourceReservedByOther } from '../lib/desks';
 
 const DETAIL_AMENITIES = {
   'Window View': { icon: MapPin, copy: 'Great natural light and city view' },
@@ -58,7 +59,7 @@ export default function ResourceDetailsModal({
       : 'Collaboration, hybrid workdays';
 
   const nextAvailable = useMemo(() => {
-    if (desk.is_available) {
+    if (isResourceAvailable(desk)) {
       return { day: 'Available today', time: 'Now' };
     }
     const baseDate = selectedDate ? parseISO(selectedDate) : new Date();
@@ -124,8 +125,8 @@ export default function ResourceDetailsModal({
               <p className="text-sm text-slate-500">{desk.desk_type ?? getLabelForType(desk.type)}</p>
               <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">{desk.name}</h2>
             </div>
-            <span className={desk.is_available ? 'badge-green' : 'badge-red'}>
-              {desk.is_available ? 'Available' : 'Reserved'}
+            <span className={isResourceAvailable(desk) ? 'badge-green' : 'badge-red'}>
+              {isResourceAvailable(desk) ? 'Available' : 'Reserved'}
             </span>
           </div>
 
@@ -175,7 +176,7 @@ export default function ResourceDetailsModal({
             <button
               type="button"
               onClick={onBook}
-              disabled={booking || !desk.is_available || desk.is_mine}
+              disabled={booking || isResourceReservedByOther(desk) || desk.is_mine}
               className="btn-primary w-full py-3"
             >
               {booking ? 'Reserving...' : 'Reserve now'}

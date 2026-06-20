@@ -97,6 +97,7 @@ def list_resources(
 
 @router.get("/recommendations/team", response_model=TeamDeskRecommendation)
 def recommend_near_team(
+    booking_date: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -105,7 +106,7 @@ def recommend_near_team(
         return TeamDeskRecommendation(
             team_name=None,
             team_zone=None,
-            resources=[_enrich_resource(r, None, current_user, db) for r in resources],
+            resources=[_enrich_resource(r, booking_date, current_user, db) for r in resources],
         )
 
     teammates = (
@@ -133,7 +134,7 @@ def recommend_near_team(
     return TeamDeskRecommendation(
         team_name=current_user.team_name,
         team_zone=zone,
-        resources=[_enrich_resource(r, None, current_user, db) for r in resources],
+        resources=[_enrich_resource(r, booking_date, current_user, db) for r in resources],
     )
 
 

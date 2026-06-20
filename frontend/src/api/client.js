@@ -45,8 +45,10 @@ export async function getResources(params) {
   return data;
 }
 
-export async function getTeamDeskRecommendations() {
-  const { data } = await api.get('/resources/recommendations/team');
+export async function getTeamDeskRecommendations(date = null) {
+  const { data } = await api.get('/resources/recommendations/team', {
+    params: date ? { date } : {},
+  });
   return data;
 }
 

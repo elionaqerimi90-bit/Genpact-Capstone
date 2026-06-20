@@ -9,6 +9,7 @@ import {
 } from '../../api/client';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import PageHeader from '../../components/ui/PageHeader';
+import { formatApiError } from '../../lib/apiError';
 import {
   emailDomainHint,
   emailValidationError,
@@ -121,7 +122,7 @@ export default function Users() {
       resetForm();
       load();
     } catch (err) {
-      setError(String(err?.response?.data?.detail ?? 'Could not save user.'));
+      setError(formatApiError(err, 'Could not save user.'));
     }
   };
 

@@ -1,6 +1,7 @@
 import { Calendar, Heart, MapPin, Star, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AMENITY_ICONS, DESK_IMAGES } from '../lib/constants';
+import { isResourceAvailable, isResourceReservedByOther } from '../lib/desks';
 
 export default function DeskDetailPanel({
   desk,
@@ -9,6 +10,8 @@ export default function DeskDetailPanel({
   onBook,
   onBookTeam,
   onMoreDetails,
+  onSelectAlternative,
+  alternativeDesks = [],
   booking,
   message,
   favoriteBusy,
@@ -40,7 +43,7 @@ export default function DeskDetailPanel({
         >
           <X size={16} />
         </button>
-        {desk.is_available && !desk.is_mine && (
+        {isResourceAvailable(desk) && !desk.is_mine && (
           <span className="badge-green absolute left-3 top-3">Available Now</span>
         )}
         {desk.desk_type === 'Window Desk' && (
@@ -60,7 +63,7 @@ export default function DeskDetailPanel({
         <div className="mt-3 flex flex-wrap gap-2">
           {desk.is_mine ? (
             <span className="badge-blue">My Reservation</span>
-          ) : desk.is_available ? (
+          ) : isResourceAvailable(desk) ? (
             <span className="badge-green">Available</span>
           ) : (
             <span className="badge-red">
@@ -150,13 +153,44 @@ export default function DeskDetailPanel({
           </div>
         )}
 
-        {desk.is_available && !desk.is_mine && (
+        {desk.type === 'desk' && isResourceReservedByOther(desk) && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            This desk is already reserved
+            {desk.reserved_by ? ` by ${desk.reserved_by}` : ''}. Double booking is not allowed.
+          </div>
+        )}
+
+        {desk.type === 'desk' && isResourceReservedByOther(desk) && alternativeDesks.length > 0 && (
+          <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50 p-3">
+            <p className="text-sm font-medium text-brand-900">Try one of these available desks</p>
+            <div className="mt-2 space-y-2">
+              {alternativeDesks.map((alternative) => (
+                <button
+                  key={alternative.id}
+                  type="button"
+                  onClick={() => onSelectAlternative?.(alternative)}
+                  className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left text-sm text-slate-700 shadow-sm hover:bg-brand-100/40"
+                >
+                  <span>
+                    <strong>{alternative.name}</strong>
+                    <span className="block text-xs text-slate-500">
+                      Floor {alternative.floor} · {alternative.zone}
+                    </span>
+                  </span>
+                  <span className="text-xs font-medium text-brand-700">View</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isResourceAvailable(desk) && !desk.is_mine && (
           <button type="button" onClick={onBook} disabled={booking} className="btn-primary mt-4 w-full">
             <Calendar size={16} />
             {booking ? 'Reserving...' : 'Reserve Now'}
           </button>
         )}
-        {desk.type === 'desk' && desk.is_available && !desk.is_mine && (
+        {desk.type === 'desk' && isResourceAvailable(desk) && !desk.is_mine && (
           <button
             type="button"
             onClick={() => setShowRecurring?.(true)}

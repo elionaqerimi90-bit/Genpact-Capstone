@@ -10,6 +10,22 @@ from app.models.resource import Resource
 from app.models.user import User, UserRole
 
 
+def active_reservation_for_resource(
+    db: Session,
+    resource_id: int,
+    booking_date: date,
+) -> Reservation | None:
+    return (
+        db.query(Reservation)
+        .filter(
+            Reservation.resource_id == resource_id,
+            Reservation.date == booking_date,
+            Reservation.status == ReservationStatus.active,
+        )
+        .first()
+    )
+
+
 def validate_booking_rules(
     db: Session,
     user: User,
@@ -33,6 +49,27 @@ def validate_booking_rules(
     resource = db.get(Resource, resource_id)
     if not resource or not resource.is_active:
         raise HTTPException(status_code=404, detail="Resource not found or inactive")
+
+    active_on_resource = active_reservation_for_resource(
+        db,
+        resource_id,
+        booking_date,
+    )
+    if active_on_resource:
+        if active_on_resource.user_id == user.id and (
+            exclude_reservation_id is None or active_on_resource.id != exclude_reservation_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="You already reserved this resource for the selected date",
+            )
+        if active_on_resource.user_id != user.id and (
+            exclude_reservation_id is None or active_on_resource.id != exclude_reservation_id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="This resource is already booked for the selected date",
+            )
 
     if resource.type == "room" and user.role not in (UserRole.team_leader, UserRole.manager):
         raise HTTPException(
@@ -125,6 +162,15 @@ def create_reservation(
 ) -> Reservation:
     validate_booking_rules(db, user, resource_id, booking_date, start_time, end_time)
 
+    active_on_resource = active_reservation_for_resource(db, resource_id, booking_date)
+    if active_on_resource:
+        if active_on_resource.user_id == user.id:
+            return active_on_resource
+        raise HTTPException(
+            status_code=409,
+            detail="This resource is already booked for the selected date",
+        )
+
     existing = (
         db.query(Reservation)
         .filter(
@@ -134,21 +180,13 @@ def create_reservation(
         .first()
     )
     if existing:
-        if existing.status == ReservationStatus.active:
-            raise HTTPException(
-                status_code=409,
-                detail="This resource is already booked for the selected date",
-            )
-        if existing.status == ReservationStatus.cancelled:
-            existing.user_id = user.id
-            existing.status = ReservationStatus.active
-            db.commit()
-            db.refresh(existing)
-            return existing
-        raise HTTPException(
-            status_code=409,
-            detail="This resource is already booked for the selected date",
-        )
+        existing.user_id = user.id
+        existing.status = ReservationStatus.active
+        existing.start_time = start_time
+        existing.end_time = end_time
+        db.commit()
+        db.refresh(existing)
+        return existing
 
     reservation = Reservation(
         user_id=user.id,
