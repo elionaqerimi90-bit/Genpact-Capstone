@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import {
   createResource,
   deleteResource,
@@ -9,6 +10,8 @@ import {
 } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
 import { ZONE_OPTIONS } from '../../lib/constants';
+import { compareNatural, sortByNaturalFloor, sortByNaturalName } from '../../lib/sort';
+import { showConfirmToast } from '../../lib/toast';
 
 const DESK_FEATURE_OPTIONS = [
   'Near window',
@@ -104,7 +107,7 @@ export default function Resources() {
   const [selectedResourceIds, setSelectedResourceIds] = useState([]);
   const [bulkCount, setBulkCount] = useState(1);
 
-  const load = () => getResources().then(setResources);
+  const load = () => getResources().then((data) => setResources(sortByNaturalName(data)));
 
   const buildingOptions = useMemo(
     () => [...new Set(floorPlans.map((plan) => plan.building).filter(Boolean))].sort(),
@@ -114,7 +117,7 @@ export default function Resources() {
   const floorOptions = useMemo(
     () =>
       [...new Set(floorPlans.map((plan) => plan.floor).filter(Boolean))].sort(
-        (a, b) => a.localeCompare(b, undefined, { numeric: true }),
+        compareNatural,
       ),
     [floorPlans],
   );
@@ -136,8 +139,8 @@ export default function Resources() {
   );
 
   useEffect(() => {
-    load();
-    getFloorPlans().then(setFloorPlans);
+    load().catch(() => toast.error('Could not load resources.'));
+    getFloorPlans().then((data) => setFloorPlans(sortByNaturalFloor(data))).catch(() => toast.error('Could not load floor plans.'));
   }, []);
 
   useEffect(() => {
@@ -151,11 +154,11 @@ export default function Resources() {
     }));
   }, [showForm, form.floor, floorOptions, floorPlans]);
 
-  const visibleResources = resources.filter((resource) => {
+  const visibleResources = sortByNaturalName(resources.filter((resource) => {
     if (filterBuilding && resource.building !== filterBuilding) return false;
     if (filterFloor && resource.floor !== filterFloor) return false;
     return true;
-  });
+  }));
 
   const selectedAmenities = useMemo(
     () =>
@@ -175,24 +178,30 @@ export default function Resources() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editing) {
-      await updateResource(editing, form);
-      setEditing(null);
-    } else {
-      const count = Math.max(1, Number(bulkCount) || 1);
-      await Promise.all(
-        Array.from({ length: count }, (_, index) =>
-          createResource({
-            ...form,
-            name: count === 1 ? form.name : `${form.name} ${index + 1}`,
-          }),
-        ),
-      );
+    try {
+      if (editing) {
+        await updateResource(editing, form);
+        setEditing(null);
+        toast.success(`${form.name} updated.`);
+      } else {
+        const count = Math.max(1, Number(bulkCount) || 1);
+        await Promise.all(
+          Array.from({ length: count }, (_, index) =>
+            createResource({
+              ...form,
+              name: count === 1 ? form.name : `${form.name} ${index + 1}`,
+            }),
+          ),
+        );
+        toast.success(count === 1 ? `${form.name} created.` : `${count} resources created.`);
+      }
+      setForm(emptyForm);
+      setShowForm(false);
+      setBulkCount(1);
+      await load();
+    } catch (error) {
+      toast.error(String(error?.response?.data?.detail ?? 'Could not save this resource.'));
     }
-    setForm(emptyForm);
-    setShowForm(false);
-    setBulkCount(1);
-    load();
   };
 
   const handleEdit = (resource) => {
@@ -211,10 +220,21 @@ export default function Resources() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remove this resource? Active bookings will be flagged.')) return;
-    await deleteResource(id);
-    setSelectedResourceIds((current) => current.filter((resourceId) => resourceId !== id));
-    load();
+    const resource = resources.find((item) => item.id === id);
+    showConfirmToast({
+      message: `Remove ${resource?.name ?? 'this resource'}? Active bookings will be flagged.`,
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        try {
+          await deleteResource(id);
+          setSelectedResourceIds((current) => current.filter((resourceId) => resourceId !== id));
+          toast.success(`${resource?.name ?? 'Resource'} removed.`);
+          await load();
+        } catch (error) {
+          toast.error(String(error?.response?.data?.detail ?? 'Could not remove this resource.'));
+        }
+      },
+    });
   };
 
   const toggleResourceSelection = (id) => {
@@ -229,10 +249,20 @@ export default function Resources() {
 
   const handleBulkDelete = async () => {
     if (!selectedResourceIds.length) return;
-    if (!confirm(`Remove ${selectedResourceIds.length} selected resources? Active bookings will be flagged.`)) return;
-    await Promise.all(selectedResourceIds.map((id) => deleteResource(id)));
-    setSelectedResourceIds([]);
-    load();
+    showConfirmToast({
+      message: `Remove ${selectedResourceIds.length} selected resources? Active bookings will be flagged.`,
+      confirmLabel: 'Remove selected',
+      onConfirm: async () => {
+        try {
+          await Promise.all(selectedResourceIds.map((id) => deleteResource(id)));
+          toast.success(`${selectedResourceIds.length} resources removed.`);
+          setSelectedResourceIds([]);
+          await load();
+        } catch (error) {
+          toast.error(String(error?.response?.data?.detail ?? 'Could not remove selected resources.'));
+        }
+      },
+    });
   };
 
   return (

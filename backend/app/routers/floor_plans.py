@@ -1,17 +1,14 @@
-# Handle reservation creation with conflict detection
-
+import json
 import os
 import uuid
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
-
-try:
-    from vercel.blob import AsyncBlobClient
-except ModuleNotFoundError:
-    AsyncBlobClient = None
 
 from app.auth import get_current_user, require_admin
 from app.config import settings
@@ -38,6 +35,67 @@ def _resolve_floor_plan(db: Session, plan_key: str) -> FloorPlan | None:
     if not plan:
         plan = db.query(FloorPlan).filter(FloorPlan.floor == plan_key).first()
     return plan
+
+
+def _store_blob(pathname: str, content: bytes, content_type: str) -> str:
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        raise HTTPException(
+            status_code=500,
+            detail="Blob storage is not configured. Add BLOB_READ_WRITE_TOKEN in Vercel.",
+        )
+
+    store_id = (os.getenv("BLOB_STORE_ID") or "").strip().strip('"').strip("'")
+    if store_id.startswith("store_"):
+        store_id = store_id[len("store_") :]
+    if not store_id and blob_token.startswith("vercel_blob_rw_"):
+        token_parts = blob_token.split("_")
+        if len(token_parts) >= 4:
+            store_id = token_parts[3]
+    if not store_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Blob storage is missing BLOB_STORE_ID in Vercel.",
+        )
+
+    request = Request(
+        f"https://vercel.com/api/blob/{quote(pathname)}",
+        data=content,
+        headers={
+            "Authorization": f"Bearer {blob_token}",
+            "Content-Type": content_type or "application/octet-stream",
+            "x-api-version": "7",
+            "x-content-length": str(len(content)),
+            "x-vercel-blob-store-id": store_id,
+            "x-vercel-blob-access": "private",
+            "x-add-random-suffix": "1",
+        },
+        method="PUT",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=502, detail=f"Blob upload failed: {detail}") from exc
+    except (URLError, TimeoutError) as exc:
+        raise HTTPException(status_code=502, detail=f"Blob upload failed: {exc}") from exc
+
+    url = payload.get("url")
+    if not url:
+        raise HTTPException(status_code=502, detail="Blob upload did not return a URL")
+    return url
+
+
+def _store_floor_plan_bytes(filename: str, content: bytes, content_type: str) -> str:
+    if os.getenv("VERCEL") or os.getenv("BLOB_READ_WRITE_TOKEN"):
+        return _store_blob(f"floor-plans/{filename}", content, content_type)
+
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    filepath = os.path.join(settings.upload_dir, filename)
+    with open(filepath, "wb") as f:
+        f.write(content)
+    return filepath
 
 
 @router.get("", response_model=list[FloorPlanOut])
@@ -71,31 +129,19 @@ async def upload_floor_plan(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Only PNG/JPG images allowed")
 
-    os.makedirs(settings.upload_dir, exist_ok=True)
     filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(settings.upload_dir, filename)
-
     content = await file.read()
-    blob_url = None
-    if os.getenv("BLOB_READ_WRITE_TOKEN") and AsyncBlobClient is not None:
-        client = AsyncBlobClient()
-        blob = await client.put(
-            f"floor-plans/{filename}",
-            content,
-            access="public",
-            add_random_suffix=True,
-        )
-        blob_url = blob.url
-    else:
-        with open(filepath, "wb") as f:
-            f.write(content)
+    image_path = _store_floor_plan_bytes(filename, content, file.content_type or "application/octet-stream")
 
     existing = db.query(FloorPlan).filter(FloorPlan.floor == floor).first()
     if existing:
         if existing.image_path and not _is_blob_url(existing.image_path):
-            if os.path.exists(existing.image_path):
-                os.remove(existing.image_path)
-        existing.image_path = blob_url or filepath
+            existing_path = Path(existing.image_path)
+            if not existing_path.is_absolute():
+                existing_path = Path(settings.upload_dir).resolve() / existing_path.name
+            if existing_path.exists():
+                existing_path.unlink()
+        existing.image_path = image_path
         existing.name = name.strip() if name and name.strip() else existing.name
         existing.building = building
         db.commit()
@@ -106,7 +152,7 @@ async def upload_floor_plan(
             name=name.strip() if name and name.strip() else f"Floor {floor}",
             building=building,
             floor=floor,
-            image_path=blob_url or filepath,
+            image_path=image_path,
         )
         db.add(plan)
         db.commit()
@@ -127,13 +173,27 @@ def get_floor_plan_image(plan_id: int, db: Session = Depends(get_db)):
     if not plan:
         raise HTTPException(status_code=404, detail="Image not found")
     if _is_blob_url(plan.image_path):
-        return RedirectResponse(plan.image_path)
+        blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+        headers = {"Authorization": f"Bearer {blob_token}"} if blob_token else {}
+        request = Request(plan.image_path, headers=headers)
+        try:
+            with urlopen(request, timeout=30) as response:
+                content = response.read()
+                media_type = response.headers.get("Content-Type", "application/octet-stream")
+        except HTTPError as exc:
+            if exc.code == 404:
+                raise HTTPException(status_code=404, detail="Image not found") from exc
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise HTTPException(status_code=502, detail=f"Blob download failed: {detail}") from exc
+        except (URLError, TimeoutError) as exc:
+            raise HTTPException(status_code=502, detail=f"Blob download failed: {exc}") from exc
+        return Response(content, media_type=media_type, headers={"Cache-Control": "no-store"})
     image_path = Path(plan.image_path)
     if not image_path.is_absolute():
         image_path = Path(settings.upload_dir).resolve() / image_path.name
     if not image_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
-    return FileResponse(str(image_path))
+    return FileResponse(str(image_path), headers={"Cache-Control": "no-store"})
 
 
 @router.put("/{plan_id}", response_model=FloorPlanOut)

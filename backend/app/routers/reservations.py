@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.resource import Resource, ResourceType
 from app.models.reservation import Reservation, ReservationStatus
 from app.models.user import User, UserRole
+from app.config import settings
 from app.schemas.reservation import (
     ReservationCreate,
     ReservationOut,
@@ -21,6 +22,11 @@ from app.services.booking import (
     create_reservation,
     update_reservation,
 )
+from app.services.notifications import (
+    build_admin_reservation_created_email,
+    build_reservation_cancelled_email,
+    send_email,
+)
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
 
@@ -32,6 +38,36 @@ def _to_out(reservation: Reservation) -> ReservationOut:
     if reservation.user:
         out.user_name = reservation.user.full_name
     return out
+
+
+def _admin_notification_recipients(db: Session) -> list[str]:
+    if settings.admin_notification_email:
+        return [settings.admin_notification_email]
+    admins = db.query(User.email).filter(User.role == UserRole.admin).all()
+    return [email for (email,) in admins if email]
+
+
+def _safe_send_email(to_email: str, subject: str, body: str) -> None:
+    try:
+        send_email(to_email, subject, body)
+    except Exception as exc:
+        print(f"[mail:error] to={to_email} subject={subject} error={exc}")
+
+
+def _notify_admins_reservation_created(db: Session, reservation: Reservation) -> None:
+    subject = "DeskDibs reservation created"
+    body = build_admin_reservation_created_email(reservation)
+    for email in _admin_notification_recipients(db):
+        _safe_send_email(email, subject, body)
+
+
+def _notify_user_reservation_cancelled(reservation: Reservation) -> None:
+    if reservation.user and reservation.user.email:
+        _safe_send_email(
+            reservation.user.email,
+            "Your DeskDibs reservation was cancelled",
+            build_reservation_cancelled_email(reservation),
+        )
 
 
 @router.get("/me", response_model=list[ReservationOut])
@@ -89,6 +125,8 @@ def book(
             .filter(Reservation.id.in_([reservation.id for reservation in reservations]))
             .all()
         )
+        for reservation in results:
+            _notify_admins_reservation_created(db, reservation)
         return [_to_out(r) for r in results]
 
     reservation = create_reservation(
@@ -105,6 +143,7 @@ def book(
         .filter(Reservation.id == reservation.id)
         .first()
     )
+    _notify_admins_reservation_created(db, reservation)
     return _to_out(reservation)
 
 
@@ -124,6 +163,8 @@ def cancel(
         raise HTTPException(status_code=404, detail="Reservation not found")
     is_admin = current_user.role == UserRole.admin
     reservation = cancel_reservation(db, reservation, current_user, is_admin)
+    if is_admin:
+        _notify_user_reservation_cancelled(reservation)
     return _to_out(reservation)
 
 
@@ -200,4 +241,6 @@ def book_team_desks(
         .filter(Reservation.id.in_([r.id for r in created]))
         .all()
     )
+    for reservation in results:
+        _notify_admins_reservation_created(db, reservation)
     return [_to_out(r) for r in results]

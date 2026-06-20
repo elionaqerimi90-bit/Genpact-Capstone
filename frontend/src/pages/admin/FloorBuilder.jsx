@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Trash2, Upload, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import {
   createResource,
   deleteFloorPlan,
@@ -10,6 +11,8 @@ import {
   uploadFloorPlan,
 } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
+import { sortByNaturalFloor, sortByNaturalName } from '../../lib/sort';
+import { showConfirmToast } from '../../lib/toast';
 
 const emptyPlanForm = {
   name: '',
@@ -28,6 +31,11 @@ const emptyResourceForm = {
   amenities: '',
 };
 
+const withFreshImage = (plan) => ({
+  ...plan,
+  image_url: `${plan.image_url}${plan.image_url.includes('?') ? '&' : '?'}v=${Date.now()}`,
+});
+
 export default function FloorBuilder() {
   const [floor, setFloor] = useState('');
   const [resources, setResources] = useState([]);
@@ -42,13 +50,14 @@ export default function FloorBuilder() {
   const [savingPlan, setSavingPlan] = useState(false);
   const [savingResource, setSavingResource] = useState(false);
   const [message, setMessage] = useState('');
+  const [missingPlanImages, setMissingPlanImages] = useState({});
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
     getFloorPlans()
       .then((data) => {
-        const sorted = data.slice().sort((a, b) => a.floor.localeCompare(b.floor, undefined, { numeric: true }));
+        const sorted = sortByNaturalFloor(data);
         setPlans(sorted);
         if (sorted.length) {
           setFloor(sorted[0].floor);
@@ -56,7 +65,10 @@ export default function FloorBuilder() {
           setPlanForm(emptyPlanForm);
         }
       })
-      .catch(() => setMessage('Could not load floor plans right now.'));
+      .catch(() => {
+        setMessage('Could not load floor plans right now.');
+        toast.error('Could not load floor plans right now.');
+      });
   }, []);
 
   useEffect(() => {
@@ -65,7 +77,7 @@ export default function FloorBuilder() {
       return;
     }
 
-    getResources({ floor }).then(setResources).catch(() => setResources([]));
+    getResources({ floor }).then((data) => setResources(sortByNaturalName(data))).catch(() => setResources([]));
   }, [floor]);
 
   const plan = plans.find((item) => item.floor === floor) ?? null;
@@ -102,7 +114,7 @@ export default function FloorBuilder() {
 
   const reloadPlans = async () => {
     const data = await getFloorPlans();
-    const sorted = data.slice().sort((a, b) => a.floor.localeCompare(b.floor, undefined, { numeric: true }));
+    const sorted = sortByNaturalFloor(data);
     setPlans(sorted);
     return sorted;
   };
@@ -143,15 +155,24 @@ export default function FloorBuilder() {
         planForm.building.trim() || 'HQ - Prishtina',
         planForm.name.trim() || `Floor ${planForm.floor.trim()}`,
       );
+      const refreshedPlan = withFreshImage(uploaded);
       setPlans((prev) => {
         const rest = prev.filter((item) => item.id !== uploaded.id && item.floor !== uploaded.floor);
-        return [...rest, uploaded].sort((a, b) => a.floor.localeCompare(b.floor, undefined, { numeric: true }));
+        return sortByNaturalFloor([...rest, refreshedPlan]);
+      });
+      setMissingPlanImages((current) => {
+        const next = { ...current };
+        delete next[uploaded.id];
+        return next;
       });
       setFloor(uploaded.floor);
       setEditingPlanId(null);
       setMessage(`Floor plan for floor ${uploaded.floor} saved successfully.`);
+      toast.success(`Floor plan for floor ${uploaded.floor} saved.`);
     } catch (error) {
-      setMessage(error?.response?.data?.detail ?? 'Could not upload the floor plan.');
+      const errorMessage = error?.response?.data?.detail ?? 'Could not upload the floor plan.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSavingPlan(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -177,31 +198,41 @@ export default function FloorBuilder() {
         setFloor(sorted[0]?.floor ?? '');
       }
       setMessage(`Floor ${updated.floor} updated successfully.`);
+      toast.success(`Floor ${updated.floor} updated.`);
     } catch (error) {
-      setMessage(error?.response?.data?.detail ?? 'Could not update this floor plan.');
+      const errorMessage = error?.response?.data?.detail ?? 'Could not update this floor plan.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSavingPlan(false);
     }
   };
 
   const handleDeletePlan = async (selectedPlan) => {
-    if (!confirm(`Delete the floor plan for floor ${selectedPlan.floor}?`)) return;
-
-    setSavingPlan(true);
-    setMessage('');
-    try {
-      await deleteFloorPlan(selectedPlan.id);
-      const nextPlans = await reloadPlans();
-      const nextFloor = nextPlans[0]?.floor ?? '';
-      setFloor(floor === selectedPlan.floor ? nextFloor : floor);
-      if (editingPlanId === selectedPlan.id) setEditingPlanId(null);
-      if (selectedPlanId === selectedPlan.id) setSelectedPlanId(null);
-      setMessage(`Floor ${selectedPlan.floor} deleted successfully.`);
-    } catch (error) {
-      setMessage(error?.response?.data?.detail ?? 'Could not delete this floor plan.');
-    } finally {
-      setSavingPlan(false);
-    }
+    showConfirmToast({
+      message: `Delete the floor plan for floor ${selectedPlan.floor}?`,
+      confirmLabel: 'Delete floor',
+      onConfirm: async () => {
+        setSavingPlan(true);
+        setMessage('');
+        try {
+          await deleteFloorPlan(selectedPlan.id);
+          const nextPlans = await reloadPlans();
+          const nextFloor = nextPlans[0]?.floor ?? '';
+          setFloor(floor === selectedPlan.floor ? nextFloor : floor);
+          if (editingPlanId === selectedPlan.id) setEditingPlanId(null);
+          if (selectedPlanId === selectedPlan.id) setSelectedPlanId(null);
+          setMessage(`Floor ${selectedPlan.floor} deleted successfully.`);
+          toast.success(`Floor ${selectedPlan.floor} deleted.`);
+        } catch (error) {
+          const errorMessage = error?.response?.data?.detail ?? 'Could not delete this floor plan.';
+          setMessage(errorMessage);
+          toast.error(errorMessage);
+        } finally {
+          setSavingPlan(false);
+        }
+      },
+    });
   };
 
   const handleCreateResource = async () => {
@@ -209,12 +240,13 @@ export default function FloorBuilder() {
 
     setSavingResource(true);
     setMessage('');
+    const resourceFloor = resourceForm.floor.trim();
     try {
-      await createResource({
+      const created = await createResource({
         ...resourceForm,
         name: resourceForm.name.trim(),
         building: resourceForm.building.trim() || plan?.building || 'HQ - Prishtina',
-        floor: resourceForm.floor.trim(),
+        floor: resourceFloor,
         zone: resourceForm.zone.trim(),
         amenities: resourceForm.amenities.trim() || undefined,
         desk_type:
@@ -222,17 +254,22 @@ export default function FloorBuilder() {
             ? 'Meeting Room'
             : resourceForm.desk_type.trim() || undefined,
       });
-      const updated = await getResources({ floor: resourceForm.floor.trim() });
-      setResources(updated);
+      const updated = await getResources({ floor: resourceFloor });
+      setFloor(resourceFloor);
+      setResources(sortByNaturalName(updated));
+      setSelected(created);
       setResourceForm({
         ...emptyResourceForm,
-        floor: floor || plan?.floor || '',
+        floor: resourceFloor || floor || plan?.floor || '',
         building: plan?.building || 'HQ - Prishtina',
       });
       setCreatingResource(false);
       setMessage('Resource saved successfully and is now available across the app.');
+      toast.success(`${created.name} saved. Select it and click the plan to place its pin.`);
     } catch (error) {
-      setMessage(error?.response?.data?.detail ?? 'Could not save this resource.');
+      const errorMessage = error?.response?.data?.detail ?? 'Could not save this resource.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSavingResource(false);
     }
@@ -249,6 +286,7 @@ export default function FloorBuilder() {
         resource.id === selected.id ? { ...resource, floor_plan_x: x, floor_plan_y: y } : resource,
       ),
     );
+    toast.success(`${selected.name} pin placed.`);
   };
 
   const handleDrag = (e, resource) => {
@@ -267,6 +305,7 @@ export default function FloorBuilder() {
   const handleDragEnd = async (resource) => {
     if (resource.floor_plan_x == null || resource.floor_plan_y == null) return;
     await updateResourcePosition(resource.id, resource.floor_plan_x, resource.floor_plan_y);
+    toast.success(`${resource.name} pin updated.`);
     setDragging(null);
   };
 
@@ -486,7 +525,25 @@ export default function FloorBuilder() {
                   onClick={handleCanvasClick}
                   className="relative max-h-[720px] w-full cursor-crosshair"
                 >
-                  <img src={plan.image_url} alt="" className="block max-h-[720px] w-full object-contain" />
+                  {!missingPlanImages[plan.id] ? (
+                    <img
+                      src={plan.image_url}
+                      alt=""
+                      className="block max-h-[720px] w-full object-contain"
+                      onError={() => {
+                        setMissingPlanImages((current) => ({ ...current, [plan.id]: true }));
+                        toast.error('This floor plan image is missing. Replace it to store a fresh copy in Blob.');
+                      }}
+                    />
+                  ) : (
+                    <div className="flex min-h-[480px] flex-col items-center justify-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-6 text-center text-amber-900">
+                      <p className="text-sm font-semibold">Floor plan image is missing</p>
+                      <p className="max-w-md text-sm">
+                        The floor record exists, but the old image is no longer available on Vercel.
+                        Click Replace floor plan to upload it again.
+                      </p>
+                    </div>
+                  )}
                   {resources
                     .filter((resource) => resource.floor_plan_x != null && resource.floor_plan_y != null)
                     .map((resource) => (
@@ -505,11 +562,15 @@ export default function FloorBuilder() {
                           left: `${resource.floor_plan_x}%`,
                           top: `${resource.floor_plan_y}%`,
                         }}
-                        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full px-2 py-1 text-xs font-medium text-white ${
-                          selected?.id === resource.id ? 'bg-yellow-500 ring-2 ring-yellow-300' : 'bg-brand-600'
-                        }`}
+                        className="absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-emerald-500 ring-2 ring-emerald-300"
                       >
-                        {resource.name}
+                        <span
+                          className={`pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium text-white shadow ${
+                            selected?.id === resource.id ? 'bg-yellow-500 ring-2 ring-yellow-300' : 'bg-brand-600'
+                          }`}
+                        >
+                          {resource.name}
+                        </span>
                       </div>
                     ))}
                 </div>

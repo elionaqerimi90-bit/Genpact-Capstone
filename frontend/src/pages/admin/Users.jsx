@@ -63,28 +63,40 @@ export default function Users() {
     setFeedback(null);
     setCreatedPassword('');
     const payload = {
-      full_name: form.full_name,
-      job_title: form.job_title || undefined,
+      full_name: form.full_name.trim(),
+      job_title: form.job_title.trim() || undefined,
       role: form.role,
     };
 
-    if (editingUserId) {
-      await updateUser(editingUserId, payload);
-      setFeedback({ type: 'success', text: 'User updated successfully.' });
-    } else {
-      const created = await registerUser({
-        ...form,
-        job_title: form.job_title || undefined,
-      });
-      setCreatedPassword(created.temporary_password || '');
+    try {
+      if (editingUserId) {
+        await updateUser(editingUserId, payload);
+        setFeedback({ type: 'success', text: 'User updated successfully.' });
+      } else {
+        const created = await registerUser({
+          ...form,
+          email: form.email.trim().toLowerCase(),
+          full_name: form.full_name.trim(),
+          job_title: form.job_title.trim() || undefined,
+        });
+        setCreatedPassword(created.temporary_password || '');
+        setFeedback({
+          type: 'success',
+          text: 'User created successfully. If email delivery fails, copy the temporary password below.',
+        });
+      }
+
+      resetForm();
+      load();
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
       setFeedback({
-        type: 'success',
-        text: 'User created successfully.',
+        type: 'error',
+        text: Array.isArray(detail)
+          ? detail.map((item) => item.msg).join(' ')
+          : String(detail || 'Could not save this user.'),
       });
     }
-
-    resetForm();
-    load();
   };
 
   const handleDelete = async (user) => {

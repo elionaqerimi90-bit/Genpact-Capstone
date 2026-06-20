@@ -57,3 +57,12 @@ body {
 .badge-amber {
   @apply inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20;
 }
+
+.Toastify__toast {
+  @apply rounded-lg border border-slate-200 text-sm shadow-lg;
+  font-family: var(--font-sans);
+}
+
+.Toastify__toast-body {
+  @apply items-start;
+}

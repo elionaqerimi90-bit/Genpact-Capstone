@@ -24,6 +24,7 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.services.notifications import (
+    build_account_created_email,
     build_reset_link,
     generate_reset_token,
     generate_temporary_password,
@@ -116,22 +117,20 @@ def register(
     db.commit()
     db.refresh(user)
 
-    send_email(
-        user.email,
-        "Your DeskDibs account is ready",
-        "\n".join(
-            [
-                f"Hello {user.full_name},",
-                "",
-                "Your DeskDibs account has been created.",
-                f"Temporary passcode: {temporary_password}",
-                "",
-                f"Reset your password here: {build_reset_link(reset_token)}",
-                "",
-                "If you did not expect this email, please contact your office manager.",
-            ]
-        ),
-    )
+    try:
+        send_email(
+            user.email,
+            "Your DeskDibs account is ready",
+            build_account_created_email(
+                user.full_name,
+                user.email,
+                temporary_password,
+                build_reset_link(reset_token),
+            ),
+        )
+    except Exception as exc:
+        print(f"[mail:error] account_created user_id={user.id} email={user.email}: {exc}")
+
     return UserCreateResponse.model_validate(
         {**UserOut.model_validate(user).model_dump(), "temporary_password": temporary_password}
     )

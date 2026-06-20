@@ -9,4 +9,3 @@ python-multipart==0.0.20
 pydantic[email]==2.10.3
 pydantic-settings==2.6.1
 alembic==1.14.0
-vercel==0.2.1

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDays, format } from 'date-fns';
 import { Calendar, Filter, Layers, LocateFixed } from 'lucide-react';
+import { toast } from 'react-toastify';
 import {
   addFavorite,
   createReservation,
@@ -20,6 +21,7 @@ import ResourceDetailsModal from '../components/ResourceDetailsModal';
 import PageHeader from '../components/ui/PageHeader';
 import { ZONE_OPTIONS } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
+import { sortByNaturalName } from '../lib/sort';
 
 const STATUS = {
   available: { dot: 'bg-emerald-500', ring: 'ring-emerald-300', label: 'Available' },
@@ -47,6 +49,7 @@ export default function FloorPlan() {
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [teamHint, setTeamHint] = useState('');
   const [message, setMessage] = useState('');
+  const [missingPlanImages, setMissingPlanImages] = useState({});
   const [reservationMode, setReservationMode] = useState('all_day');
   const [roomStartTime, setRoomStartTime] = useState('09:00');
   const [roomEndTime, setRoomEndTime] = useState('17:00');
@@ -89,7 +92,7 @@ export default function FloorPlan() {
             : 'No team desk history yet, showing a broad set of suggestions',
         );
         setResources(
-          user?.role === 'employee' ? data.resources.filter((r) => r.type !== 'room') : data.resources,
+          sortByNaturalName(user?.role === 'employee' ? data.resources.filter((r) => r.type !== 'room') : data.resources),
         );
         if (data.resources?.length && !floor) {
           setFloor(data.resources[0].floor);
@@ -104,11 +107,11 @@ export default function FloorPlan() {
       zone,
       type: type || undefined,
     }).then((data) => {
-      const filtered =
+        const filtered =
         zoneFilters.length > 1
           ? data.filter((r) => zoneFilters.includes(r.zone))
           : data;
-      setResources(user?.role === 'employee' ? filtered.filter((r) => r.type !== 'room') : filtered);
+      setResources(sortByNaturalName(user?.role === 'employee' ? filtered.filter((r) => r.type !== 'room') : filtered));
     });
   }, [date, floor, zone, zoneFilters, type, nearTeam, user?.role, canUseTeamDeskFinder]);
 
@@ -174,6 +177,7 @@ export default function FloorPlan() {
 
         if (alreadyBookedDesk) {
           setMessage('You can only reserve one desk per day.');
+          toast.warn('You can only reserve one desk per day.');
           return;
         }
       }
@@ -182,13 +186,14 @@ export default function FloorPlan() {
       const endTime = selected.type === 'room' && reservationMode === 'slot' ? roomEndTime : null;
       await createReservation(selected.id, date, startTime, endTime, recurringWeeks);
       setMessage('Reservation confirmed successfully!');
+      toast.success('Reservation confirmed.');
       const updated = await getResources({
         date,
         floor,
         zone,
         type: type || undefined,
       });
-      setResources(updated);
+      setResources(sortByNaturalName(updated));
       setSelected(null);
       setDetailsOpen(false);
       setShowRecurring(false);
@@ -198,6 +203,7 @@ export default function FloorPlan() {
         err?.response?.data?.detail ??
         'Booking failed';
       setMessage(String(msg));
+      toast.error(String(msg));
     } finally {
       setBooking(false);
     }
@@ -236,14 +242,16 @@ export default function FloorPlan() {
         zone,
         type: type || undefined,
       });
-      setResources(updated);
+      setResources(sortByNaturalName(updated));
       setSelected(null);
       setDetailsOpen(false);
       closeTeamBooking();
       setShowRecurring(false);
       setRecurringWeeks(0);
+      toast.success('Team desks reserved.');
     } catch (err) {
       setTeamBookingMessage(String(err?.response?.data?.detail ?? 'Could not reserve team desks.'));
+      toast.error(String(err?.response?.data?.detail ?? 'Could not reserve team desks.'));
     } finally {
       setTeamBookingBusy(false);
     }
@@ -271,14 +279,16 @@ export default function FloorPlan() {
         zoneFilters.length > 1
           ? refreshed.filter((r) => zoneFilters.includes(r.zone))
           : refreshed;
-      setResources(filtered);
+      setResources(sortByNaturalName(filtered));
       setSelected((prev) =>
         prev && filtered.some((r) => r.id === prev.id)
           ? filtered.find((r) => r.id === prev.id) ?? updated
           : updated,
       );
     } catch (err) {
-      setMessage(String(err?.response?.data?.detail ?? 'Could not update favorites.'));
+      const errorMessage = String(err?.response?.data?.detail ?? 'Could not update favorites.');
+      setMessage(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setFavoriteBusy(false);
     }
@@ -356,7 +366,7 @@ export default function FloorPlan() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="relative flex gap-4">
         <aside className="card hidden w-56 shrink-0 p-4 lg:block">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Filter size={16} /> Zones
@@ -394,11 +404,25 @@ export default function FloorPlan() {
         <div className="relative flex min-h-[520px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
           {plan ? (
             <div className="relative max-h-[720px] w-full">
-              <img
-                src={plan.image_url}
-                alt={`Floor ${floor}`}
-                className="block max-h-[720px] w-full object-contain opacity-60"
-              />
+              {!missingPlanImages[plan.id] ? (
+                <img
+                  src={plan.image_url}
+                  alt={`Floor ${floor}`}
+                  className="block max-h-[720px] w-full object-contain"
+                  onError={() => {
+                    setMissingPlanImages((current) => ({ ...current, [plan.id]: true }));
+                    toast.error('This floor plan image is missing. Ask an admin to replace it.');
+                  }}
+                />
+              ) : (
+                <div className="flex min-h-[480px] flex-col items-center justify-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-6 text-center text-amber-900">
+                  <p className="text-sm font-semibold">Floor plan image is missing</p>
+                  <p className="max-w-md text-sm">
+                    The floor exists, but the uploaded image is no longer available.
+                    Replace the floor plan image from Admin Floor Builder.
+                  </p>
+                </div>
+              )}
               {resources
                 .filter((r) => r.floor_plan_x != null && r.floor_plan_y != null)
                 .map((r) => {
@@ -434,7 +458,10 @@ export default function FloorPlan() {
           </div>
         </div>
 
-        {selected && (
+      </div>
+
+      {selected && (
+        <div className="mt-4 lg:ml-60">
           <DeskDetailPanel
             desk={selected}
             date={date}
@@ -459,8 +486,8 @@ export default function FloorPlan() {
             setRoomEndTime={setRoomEndTime}
             message={message}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {selected && detailsOpen && (
         <ResourceDetailsModal

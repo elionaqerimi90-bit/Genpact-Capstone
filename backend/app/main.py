@@ -5,9 +5,11 @@ from sqlalchemy import inspect, text
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from app.auth import hash_password
 from app.config import settings
 from app.database import Base, engine
 from app.models import Favorite, FloorPlan, Reservation, Resource, User
+from app.models.user import UserRole
 from app.routers import analytics, auth, floor_plans, reservations, resources, users
 
 os.makedirs(settings.upload_dir, exist_ok=True)
@@ -93,9 +95,37 @@ def _ensure_database_schema():
                     )
 
 
+def _ensure_initial_admin():
+    if not settings.initial_admin_email or not settings.initial_admin_password:
+        return
+
+    from app.database import SessionLocal
+
+    email = settings.initial_admin_email.strip().lower()
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == email).first()
+        if user:
+            if user.role != UserRole.admin:
+                user.role = UserRole.admin
+                db.commit()
+            return
+
+        db.add(
+            User(
+                email=email,
+                hashed_password=hash_password(settings.initial_admin_password),
+                full_name=settings.initial_admin_name,
+                role=UserRole.admin,
+                job_title="Office Manager",
+            )
+        )
+        db.commit()
+
+
 @app.on_event("startup")
 def startup():
     _ensure_database_schema()
+    _ensure_initial_admin()
 
 
 @app.get("/api/health")

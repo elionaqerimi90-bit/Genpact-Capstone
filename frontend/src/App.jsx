@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import { AdminRoute, ManagerRoute, ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -84,6 +86,14 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ToastContainer
+          position="top-right"
+          autoClose={3500}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss={false}
+          theme="light"
+        />
       </AuthProvider>
     </BrowserRouter>
   );
