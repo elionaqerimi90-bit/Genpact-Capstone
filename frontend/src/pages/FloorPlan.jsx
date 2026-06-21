@@ -173,6 +173,28 @@ export default function FloorPlan() {
     setBooking(true);
     setMessage('');
     try {
+      const latestResources = await getResources({
+        date,
+        floor: floor || undefined,
+        zone,
+        type: type || undefined,
+      });
+      const latestSelected = latestResources.find((resource) => resource.id === selected.id);
+      if (!latestSelected) {
+        setMessage('This seat is no longer available on the current floor plan.');
+        return;
+      }
+      if (isResourceReservedByOther(latestSelected)) {
+        setSelected(latestSelected);
+        setResources(sortByNaturalName(latestResources));
+        setMessage(
+          latestSelected.reserved_by
+            ? `This seat was just reserved by ${latestSelected.reserved_by}. Choose another available seat.`
+            : 'This seat was just reserved. Choose another available seat.',
+        );
+        return;
+      }
+
       if (selected.type === 'desk') {
         const myReservations = await getMyReservations();
         const alreadyBookedDesk = myReservations.some(
@@ -207,8 +229,17 @@ export default function FloorPlan() {
       setRecurringWeeks(0);
     } catch (err) {
       const msg = formatApiError(err, 'Booking failed');
-      if (msg.toLowerCase().includes('already booked') && selected) {
-        const alternatives = getAlternativeDesks(resources, selected);
+      if ((msg.toLowerCase().includes('already booked') || msg.toLowerCase().includes('already reserved')) && selected) {
+        const refreshed = await getResources({
+          date,
+          floor: floor || undefined,
+          zone,
+          type: type || undefined,
+        }).catch(() => resources);
+        setResources(sortByNaturalName(refreshed));
+        const refreshedSelected = refreshed.find((resource) => resource.id === selected.id);
+        if (refreshedSelected) setSelected(refreshedSelected);
+        const alternatives = getAlternativeDesks(refreshed, refreshedSelected ?? selected);
         if (alternatives.length) {
           setMessage(`${msg} Try ${alternatives[0].name} on floor ${alternatives[0].floor}.`);
         } else {
@@ -386,7 +417,7 @@ export default function FloorPlan() {
         </div>
       </div>
 
-      <div className="relative flex gap-4">
+      <div className="grid gap-4 xl:grid-cols-[14rem_minmax(0,1fr)_24rem]">
         <aside className="card hidden w-56 shrink-0 p-4 lg:block">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Filter size={16} /> Zones
@@ -421,7 +452,7 @@ export default function FloorPlan() {
           </div>
         </aside>
 
-        <div className="relative flex min-h-[520px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
+        <div className="relative flex min-h-[520px] min-w-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
           {plan ? (
             <div className="relative max-h-[720px] w-full">
               {!missingPlanImages[plan.id] ? (
@@ -478,10 +509,49 @@ export default function FloorPlan() {
           </div>
         </div>
 
+        <aside className="hidden xl:block">
+          {selected ? (
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
+              <DeskDetailPanel
+                desk={selected}
+                date={date}
+                onClose={() => setSelected(null)}
+                onBook={handleBook}
+                onBookTeam={openTeamBooking}
+                onMoreDetails={openDetails}
+                onSelectAlternative={(deskOption) => {
+                  setSelected(deskOption);
+                  setMessage('');
+                }}
+                alternativeDesks={alternativeDesks}
+                booking={booking}
+                favoriteBusy={favoriteBusy}
+                onToggleFavorite={handleToggleFavorite}
+                canBookTeam={user?.role === 'team_leader'}
+                canReserveRoom={user?.role === 'team_leader' || user?.role === 'manager'}
+                showRecurring={showRecurring}
+                setShowRecurring={setShowRecurring}
+                recurringWeeks={recurringWeeks}
+                setRecurringWeeks={setRecurringWeeks}
+                reservationMode={reservationMode}
+                setReservationMode={setReservationMode}
+                roomStartTime={roomStartTime}
+                setRoomStartTime={setRoomStartTime}
+                roomEndTime={roomEndTime}
+                setRoomEndTime={setRoomEndTime}
+                message={message}
+              />
+            </div>
+          ) : (
+            <div className="sticky top-24 rounded-xl border border-dashed border-slate-300 bg-white/70 p-5 text-sm text-slate-500">
+              Select a seat on the floor plan to view details here.
+            </div>
+          )}
+        </aside>
       </div>
 
       {selected && (
-        <div className="mt-4 lg:ml-60">
+        <div className="mt-4 xl:hidden">
           <DeskDetailPanel
             desk={selected}
             date={date}
