@@ -570,11 +570,7 @@ export default function FloorBuilder() {
                             : 'bg-emerald-500 ring-2 ring-emerald-300 focus:ring-emerald-200'
                         }`}
                         aria-label={`${resource.name} pin`}
-                      >
-                        <span className="pointer-events-none absolute left-1/2 top-7 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg group-hover:block group-focus:block">
-                          {resource.name}
-                        </span>
-                      </div>
+                      />
                     ))}
                 </div>
               ) : (
