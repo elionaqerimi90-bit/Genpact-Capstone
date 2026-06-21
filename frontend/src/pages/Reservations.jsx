@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format, isAfter, isBefore, parseISO, startOfToday } from 'date-fns';
 import { CalendarX, CheckCircle2, Clock, History } from 'lucide-react';
-import { cancelReservation, getMyReservations } from '../api/client';
+import { cancelReservation, getBookingLimits, getMyReservations } from '../api/client';
 import MiniCalendar from '../components/MiniCalendar';
 import KpiCard from '../components/ui/KpiCard';
 import PageHeader from '../components/ui/PageHeader';
@@ -9,10 +9,12 @@ import PageHeader from '../components/ui/PageHeader';
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState([]);
   const [cancelling, setCancelling] = useState(null);
+  const [limits, setLimits] = useState(null);
 
   const load = () => getMyReservations().then(setReservations);
   useEffect(() => {
     load();
+    getBookingLimits().then(setLimits).catch(() => setLimits(null));
   }, []);
 
   const today = startOfToday();
@@ -46,6 +48,15 @@ export default function ReservationsPage() {
         title="My Reservations"
         subtitle="View, manage and cancel your workspace bookings"
       />
+
+      {limits && (
+        <div className="mb-4 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+          Booking limits: up to <strong>{limits.max_active_reservations}</strong> active reservations,
+          book up to <strong>{limits.max_booking_days_ahead}</strong> days ahead.
+          You currently have <strong>{limits.active_reservations}</strong> active
+          ({limits.remaining_slots} slot{limits.remaining_slots === 1 ? '' : 's'} remaining).
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Upcoming" value={upcoming.length} icon={Clock} accent="bg-sky-50 text-sky-600" />

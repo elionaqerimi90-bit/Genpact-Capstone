@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { OFFICE_HERO } from '../lib/constants';
-import BrandMark from '../components/BrandMark';
+import { emailDomainHint, emailValidationError } from '../lib/email';
 
 export default function Login() {
   const { user, loading, login } = useAuth();
@@ -25,14 +25,22 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const emailError = emailValidationError(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     setSubmitting(true);
     try {
       const { user } = await login(email, password);
       navigate(user?.role === 'admin' ? '/admin' : '/reservations');
     } catch (err) {
       const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
       setError(
-        status === 401
+        detail
+          ? String(detail)
+          : status === 401
           ? 'Incorrect email or password. Please try again.'
           : 'Sign in service is unavailable. Please check that the API is running and try again.',
       );
@@ -48,7 +56,10 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-800/85 to-brand-700/80" />
         <div className="absolute inset-0 flex flex-col justify-center px-14 text-white">
           <div className="mb-10 flex items-center gap-3">
-            <BrandMark size={44} className="text-white" showWordmark />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+              <span className="text-xl font-bold">D</span>
+            </div>
+            <span className="text-2xl font-bold tracking-tight">DeskDibs</span>
           </div>
           <h2 className="max-w-md text-4xl font-bold leading-tight">
             Workplace flexibility that works for you
@@ -73,7 +84,10 @@ export default function Login() {
       <div className="flex flex-1 flex-col justify-center bg-white px-8 py-12 sm:px-16">
         <div className="mx-auto w-full max-w-[400px]">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <BrandMark size={40} showWordmark />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">
+              D
+            </div>
+            <span className="text-xl font-bold">DeskDibs</span>
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
@@ -86,7 +100,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                placeholder={`you${emailDomainHint()}`}
                 className="input-field"
                 required
               />

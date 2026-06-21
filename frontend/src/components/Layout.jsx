@@ -6,23 +6,21 @@ import {
   Building2,
   Calendar,
   ChevronDown,
-  Menu,
   LayoutDashboard,
   LogOut,
-  Armchair,
   Map,
+  Menu,
   Search,
-  UserCircle2,
   Users,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getRecentActivity, searchWorkspace } from '../api/client';
-import BrandMark from './BrandMark';
 
 const employeeLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/reservations', icon: Calendar, label: 'My Reservations' },
-  { to: '/floor-plan', icon: Armchair, label: 'Reserve Seat' },
+  { to: '/floor-plan', icon: Map, label: 'Floor Plan' },
 ];
 
 const managerLinks = [
@@ -36,7 +34,7 @@ const adminLinks = [
   { to: '/admin/builder', icon: Map, label: 'Floor Builder' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/admin/users', icon: Users, label: 'Users' },
-  { to: '/profile', icon: UserCircle2, label: 'Profile' },
+  { to: '/admin/audit', icon: Users, label: 'Audit Log' },
 ];
 
 export default function Layout() {
@@ -48,7 +46,7 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ resources: [], users: [] });
   const [searchOpen, setSearchOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     getRecentActivity().then(setRecentActivity).catch(() => setRecentActivity([]));
@@ -89,6 +87,10 @@ export default function Layout() {
     return () => window.clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -113,67 +115,109 @@ export default function Layout() {
   const hasSearchResults =
     searchResults.resources.length > 0 || searchResults.users.length > 0;
 
-  const navSections = [
-    { title: 'Workspace', links: employeeLinks, show: true },
-    { title: 'Management', links: managerLinks, show: isManager && !isAdmin },
-    { title: 'Administration', links: adminLinks, show: isAdmin },
-  ];
+  const navLinkClass = ({ isActive }) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+      isActive
+        ? 'bg-brand-600 text-white shadow-md'
+        : 'text-brand-100 hover:bg-white/10 hover:text-white'
+    }`;
 
-  const sideNav = (
+  const sidebar = (
     <>
       <div className="border-b border-white/10 px-6 py-5">
-        <BrandMark showWordmark />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold shadow-lg">
+              D
+            </div>
+            <div>
+              <span className="text-lg font-bold tracking-tight">DeskDibs</span>
+              <p className="text-[11px] text-brand-200">Hot-desking platform</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            className="rounded-lg p-2 text-brand-100 hover:bg-white/10 lg:hidden"
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {navSections
-          .filter((section) => section.show)
-          .map((section) => (
-            <div key={section.title}>
-              <p className="mb-2 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300 first:mt-0">
-                {section.title}
-              </p>
-              {section.links.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/' || to === '/admin'}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                      isActive
-                        ? 'bg-brand-600 text-white shadow-md'
-                        : 'text-brand-100 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon size={18} strokeWidth={1.75} />
-                  {label}
-                </NavLink>
-              ))}
-            </div>
-          ))}
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
+          Workspace
+        </p>
+        {employeeLinks.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={navLinkClass}
+          >
+            <Icon size={18} strokeWidth={1.75} />
+            {label}
+          </NavLink>
+        ))}
+
+        {user?.role === 'team_leader' && (
+          <NavLink to="/team" className={navLinkClass}>
+            <Users size={18} strokeWidth={1.75} />
+            My Team
+          </NavLink>
+        )}
+
+        {isManager && !isAdmin && (
+          <>
+            <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
+              Management
+            </p>
+            {managerLinks.map(({ to, icon: Icon, label }) => (
+              <NavLink key={to} to={to} className={navLinkClass}>
+                <Icon size={18} strokeWidth={1.75} />
+                {label}
+              </NavLink>
+            ))}
+          </>
+        )}
+
+        {isAdmin && (
+          <>
+            <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
+              Administration
+            </p>
+            {adminLinks.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/admin'}
+                className={navLinkClass}
+              >
+                <Icon size={18} strokeWidth={1.75} />
+                {label}
+              </NavLink>
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="border-t border-white/10 p-4">
-        <NavLink
-          to="/profile"
-          onClick={() => setMenuOpen(false)}
-          className="mb-3 flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5"
-        >
-          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold">
+        <NavLink to="/profile" className="mb-3 flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5">
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold">
             {user?.profile_image_path ? (
               <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
             ) : (
               user?.full_name?.charAt(0)
             )}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">{user?.full_name}</span>
-            <span className="block truncate text-xs text-brand-300">
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user?.full_name}</p>
+            <p className="truncate text-xs text-brand-300">
               {user?.job_title ?? user?.role}
-            </span>
-          </span>
+            </p>
+          </div>
         </NavLink>
         <button
           type="button"
@@ -189,34 +233,39 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-surface">
-      <aside className="hidden w-[260px] shrink-0 flex-col bg-brand-900 text-white lg:flex">
-        {sideNav}
-      </aside>
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="absolute inset-0 bg-slate-950/50"
-            onClick={() => setMenuOpen(false)}
-          />
-          <aside className="relative z-10 flex h-full w-[82vw] max-w-[320px] flex-col bg-brand-900 text-white shadow-2xl">
-            {sideNav}
-          </aside>
-        </div>
+      {mobileNavOpen && (
+        <button
+          type="button"
+          aria-label="Close menu overlay"
+          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
       )}
 
+      <aside className="hidden w-[260px] shrink-0 flex-col bg-brand-900 text-white lg:flex">
+        {sidebar}
+      </aside>
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-brand-900 text-white shadow-2xl transition-transform duration-200 lg:hidden ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {sidebar}
+      </aside>
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-3 shadow-sm lg:px-6">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-3.5 shadow-sm sm:gap-4 sm:px-6">
           <button
             type="button"
-            onClick={() => setMenuOpen(true)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-700 lg:hidden"
+            onClick={() => setMobileNavOpen(true)}
+            className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:hidden"
             aria-label="Open menu"
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
-          <div className="relative min-w-0 flex-1 lg:max-w-md">
+
+          <div className="relative min-w-0 flex-1 max-w-md">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -299,7 +348,7 @@ export default function Layout() {
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 lg:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:flex"
@@ -359,26 +408,18 @@ export default function Layout() {
                 </NavLink>
                 <p className="text-xs text-slate-500">{user?.job_title ?? user?.role}</p>
               </div>
-              <NavLink
-                to="/profile"
-                className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden bg-brand-600 text-sm font-semibold text-white ring-2 ring-brand-100"
-                aria-label="Profile"
-              >
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-semibold text-white ring-2 ring-brand-100">
                 {user?.profile_image_path ? (
-                  <img
-                    src={user.profile_image_path}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={user.profile_image_path} alt="" className="h-full w-full object-cover" />
                 ) : (
                   user?.full_name?.charAt(0)
                 )}
-              </NavLink>
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

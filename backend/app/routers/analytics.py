@@ -1,7 +1,10 @@
 from collections import defaultdict
 from datetime import date, timedelta
+import csv
+import io
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -40,8 +43,9 @@ def _recent_activity_for_user(db: Session, current_user: User) -> list[str]:
 
 @router.get("/dashboard", response_model=AnalyticsDashboard)
 def dashboard(
+    days: int = Query(30, ge=7, le=90),
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_admin),
+    current_user: User = Depends(require_manager_or_admin),
 ):
 
     total_desks = (
@@ -65,7 +69,7 @@ def dashboard(
     )
 
     occupancy_trend = []
-    for i in range(29, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         booked = (
             db.query(Reservation)
@@ -91,16 +95,16 @@ def dashboard(
     today_occ = occupancy_trend[-1].occupancy if occupancy_trend else 0
 
     day_counts: dict[int, int] = defaultdict(int)
-    thirty_days_ago = today - timedelta(days=30)
-    reservations_30d = (
+    range_start = today - timedelta(days=days)
+    reservations_range = (
         db.query(Reservation)
         .filter(
-            Reservation.date >= thirty_days_ago,
+            Reservation.date >= range_start,
             Reservation.status == ReservationStatus.active,
         )
         .all()
     )
-    for r in reservations_30d:
+    for r in reservations_range:
         day_counts[r.date.weekday()] += 1
     busiest_days = [
         DayCount(day=DAY_NAMES[i], count=day_counts.get(i, 0)) for i in range(7)
@@ -119,7 +123,7 @@ def dashboard(
         db.query(Resource.name, func.count(Reservation.id))
         .join(Reservation, Reservation.resource_id == Resource.id)
         .filter(
-            Reservation.date >= thirty_days_ago,
+            Reservation.date >= range_start,
             Reservation.status == ReservationStatus.active,
             Resource.type == ResourceType.desk,
         )
@@ -136,7 +140,7 @@ def dashboard(
     floor_utilization = [
         FloorUtilization(
             floor=floor,
-            utilization=round((stats[0] / (stats[1] * 30)) * 100, 1) if stats[1] else 0,
+            utilization=round((stats[0] / (stats[1] * max(days, 1))) * 100, 1) if stats[1] else 0,
         )
         for floor, stats in sorted(floor_stats.items())
     ]
@@ -146,7 +150,7 @@ def dashboard(
         DeskUsage(
             name=name,
             bookings=count,
-            utilization=round(count / 30 * 100 / max(max_bookings, 1) * 100, 1),
+            utilization=round(count / max(days, 1) * 100 / max(max_bookings, 1) * 100, 1),
         )
         for name, count in sorted_desks[:5]
     ]
@@ -154,12 +158,12 @@ def dashboard(
         DeskUsage(
             name=name,
             bookings=count,
-            utilization=round(count / 30 * 100 / max(max_bookings, 1) * 100, 1),
+            utilization=round(count / max(days, 1) * 100 / max(max_bookings, 1) * 100, 1),
         )
         for name, count in sorted(desk_bookings, key=lambda x: x[1])[:5]
     ]
 
-    recent_activity = _recent_activity_for_user(db, _)
+    recent_activity = _recent_activity_for_user(db, current_user)
 
     return AnalyticsDashboard(
         total_desks=total_desks,
@@ -172,6 +176,30 @@ def dashboard(
         most_used_desks=most_used,
         least_used_desks=least_used,
         recent_activity=recent_activity,
+    )
+
+
+@router.get("/export")
+def export_analytics_csv(
+    days: int = Query(30, ge=7, le=90),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager_or_admin),
+):
+    data = dashboard(days=days, db=db, current_user=current_user)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["date", "occupancy_percent", "booked_desks", "total_desks"])
+    for point in data.occupancy_trend:
+        writer.writerow([point.date, point.occupancy, point.booked, point.total])
+    writer.writerow([])
+    writer.writerow(["desk_name", "bookings", "utilization_percent"])
+    for desk in data.most_used_desks:
+        writer.writerow([desk.name, desk.bookings, desk.utilization])
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=deskdibs-analytics-{days}d.csv"},
     )
 
 

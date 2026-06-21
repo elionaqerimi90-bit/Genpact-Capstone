@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-import os
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -13,16 +11,11 @@ from app.auth import (
     require_admin,
     verify_password,
 )
-from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import (
-    PasswordResetRequest,
-    Token,
-    UserCreate,
-    UserCreateResponse,
-    UserOut,
-)
+from app.schemas.auth import PasswordResetRequest, Token, UserCreate, UserCreateResponse, UserOut
+from app.utils.email_validation import normalize_email, validate_allowed_email
+from app.services.audit import record_audit
 from app.services.notifications import (
     build_account_created_email,
     build_reset_link,
@@ -41,14 +34,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
-    email = form_data.username.strip().lower()
+    email = normalize_email(form_data.username)
+    validate_allowed_email(email)
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    token = create_access_token({"sub": str(user.id)})
+    token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return Token(access_token=token, user=UserOut.model_validate(user))
 
 
@@ -57,52 +51,27 @@ def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.put("/me", response_model=UserOut)
-async def update_me(
-    full_name: str | None = Form(None),
-    current_password: str | None = Form(None),
-    new_password: str | None = Form(None),
-    profile_image: UploadFile | None = File(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if full_name is not None:
-        current_user.full_name = full_name.strip() or current_user.full_name
-
-    if new_password:
-        if not current_password or not verify_password(current_password, current_user.hashed_password):
-            raise HTTPException(status_code=400, detail="Current password is incorrect")
-        current_user.hashed_password = hash_password(new_password)
-
-    if profile_image is not None:
-        ext = Path(profile_image.filename or "").suffix.lower()
-        if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
-            raise HTTPException(status_code=400, detail="Only PNG/JPG/WebP images allowed")
-        os.makedirs(settings.upload_dir, exist_ok=True)
-        filename = f"profile-{current_user.id}{ext}"
-        filepath = Path(settings.upload_dir) / filename
-        content = await profile_image.read()
-        filepath.write_bytes(content)
-        current_user.profile_image_path = f"/uploads/{filename}"
-
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+@router.post("/refresh", response_model=Token)
+def refresh_token(current_user: User = Depends(get_current_user)):
+    token = create_access_token({"sub": str(current_user.id), "role": current_user.role.value})
+    return Token(access_token=token, user=UserOut.model_validate(current_user))
 
 
 @router.post("/register", response_model=UserCreateResponse)
 def register(
     data: UserCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin),
 ):
-    if db.query(User).filter(User.email == data.email).first():
+    email = normalize_email(data.email)
+    validate_allowed_email(email)
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     temporary_password = generate_temporary_password()
     reset_token = generate_reset_token()
     user = User(
-        email=data.email,
+        email=email,
         hashed_password=hash_password(temporary_password),
         full_name=data.full_name,
         role=data.role,
@@ -131,8 +100,18 @@ def register(
     except Exception as exc:
         print(f"[mail:error] account_created user_id={user.id} email={user.email}: {exc}")
 
-    return UserCreateResponse.model_validate(
-        {**UserOut.model_validate(user).model_dump(), "temporary_password": temporary_password}
+    record_audit(
+        db,
+        admin_user,
+        "create_user",
+        "user",
+        user.id,
+        f"Created {user.email} as {user.role.value}",
+    )
+    db.commit()
+
+    return UserCreateResponse.model_validate(user).model_copy(
+        update={"temporary_password": temporary_password}
     )
 
 

@@ -1,5 +1,6 @@
-from pathlib import Path
+import logging
 import os
+from pathlib import Path
 
 from sqlalchemy import inspect, text
 from fastapi import FastAPI
@@ -8,11 +9,16 @@ from fastapi.staticfiles import StaticFiles
 from app.auth import hash_password
 from app.config import settings
 from app.database import Base, engine
-from app.models import Favorite, FloorPlan, Reservation, Resource, User
+from app.models import AuditLog, Favorite, FloorPlan, Reservation, Resource, User
 from app.models.user import UserRole
-from app.routers import analytics, auth, floor_plans, reservations, resources, users
+from app.routers import analytics, audit, auth, floor_plans, reservations, resources, users
 
-os.makedirs(settings.upload_dir, exist_ok=True)
+logger = logging.getLogger(__name__)
+
+try:
+    os.makedirs(settings.upload_dir, exist_ok=True)
+except OSError as exc:
+    logger.warning("Upload directory unavailable: %s", exc)
 
 app = FastAPI(title="DeskDibs API", version="1.0.0")
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
@@ -20,6 +26,7 @@ app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,6 +37,7 @@ app.include_router(resources.router, prefix="/api")
 app.include_router(reservations.router, prefix="/api")
 app.include_router(floor_plans.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(audit.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
 
@@ -124,12 +132,38 @@ def _ensure_initial_admin():
 
 @app.on_event("startup")
 def startup():
-    _ensure_database_schema()
+    if not settings.database_configured:
+        logger.warning("DATABASE_URL is not configured for production")
+        return
+
+    try:
+        _ensure_database_schema()
+    except Exception as exc:
+        logger.exception("Database initialization failed: %s", exc)
+        return
+
     _ensure_initial_admin()
+
+
+@app.get("/")
+def root():
+    return {
+        "name": "DeskDibs API",
+        "health": "/api/health",
+        "docs": "/docs",
+    }
 
 
 @app.get("/api/health")
 def health():
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    return {"status": "ok", "database": "ok", "dialect": engine.dialect.name}
+    database_status = "not_configured"
+    if settings.database_configured:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        database_status = "ok"
+    return {
+        "status": "ok",
+        "database_configured": settings.database_configured,
+        "database": database_status,
+        "dialect": engine.dialect.name,
+    }

@@ -13,32 +13,67 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { getAnalyticsDashboard } from '../../api/client';
+import { downloadAnalyticsCsv, getAnalyticsDashboard } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
 
 const COLORS = ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
+function saveBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
+
 export default function Analytics() {
+  const [days, setDays] = useState(30);
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    getAnalyticsDashboard().then(setData);
-  }, []);
+    getAnalyticsDashboard(days).then(setData);
+  }, [days]);
+
+  const handleExport = async () => {
+    const blob = await downloadAnalyticsCsv(days);
+    saveBlob(blob, `deskdibs-analytics-${days}d.csv`);
+  };
 
   if (!data) return null;
 
   const heatmapDays = data.busiest_days;
+  const avgUtilization = Math.round(
+    data.occupancy_trend.reduce((sum, point) => sum + point.occupancy, 0) / data.occupancy_trend.length,
+  );
 
   return (
     <div>
       <PageHeader
         title="Analytics"
-        subtitle="30-day occupancy, utilization trends and desk performance"
+        subtitle="Occupancy trends, desk performance and busiest days"
+        action={(
+          <div className="flex items-center gap-2">
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              className="input-field w-auto"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={14}>Last 14 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+            <button type="button" onClick={handleExport} className="btn-secondary">
+              Export CSV
+            </button>
+          </div>
+        )}
       />
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Occupancy Rate', value: `${data.occupancy_rate}%` },
-          { label: 'Utilization (30d)', value: `${Math.round(data.occupancy_trend.reduce((s, d) => s + d.occupancy, 0) / 30)}%` },
+          { label: `Utilization (${days}d)`, value: `${avgUtilization}%` },
           { label: 'Total Reservations', value: data.active_reservations },
           {
             label: 'Available Capacity',
@@ -52,8 +87,8 @@ export default function Analytics() {
         ))}
       </div>
 
-      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="mb-4 font-semibold">Occupancy Over Time (30 days)</h3>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-4 font-semibold">Occupancy Over Time ({days} days)</h3>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data.occupancy_trend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -65,9 +100,9 @@ export default function Analytics() {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 font-semibold">Booking Activity by Day</h3>
+          <h3 className="mb-4 font-semibold">Busiest Days</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={heatmapDays}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -105,7 +140,7 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 font-semibold">Top Booked Desks</h3>
           <table className="w-full text-sm">

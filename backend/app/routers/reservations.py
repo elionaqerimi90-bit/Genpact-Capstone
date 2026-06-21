@@ -20,8 +20,10 @@ from app.services.booking import (
     cancel_reservation,
     create_recurring_reservations,
     create_reservation,
+    get_booking_limits,
     update_reservation,
 )
+from app.services.audit import record_audit
 from app.services.notifications import (
     build_admin_reservation_created_email,
     build_reservation_cancelled_email,
@@ -103,6 +105,14 @@ def all_reservations(
     return [_to_out(r) for r in query.all()]
 
 
+@router.get("/limits")
+def booking_limits(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_booking_limits(db, current_user)
+
+
 @router.post("", response_model=ReservationOut | list[ReservationOut], status_code=201)
 def book(
     data: ReservationCreate,
@@ -165,6 +175,15 @@ def cancel(
     reservation = cancel_reservation(db, reservation, current_user, is_admin)
     if is_admin:
         _notify_user_reservation_cancelled(reservation)
+        record_audit(
+            db,
+            current_user,
+            "cancel_reservation",
+            "reservation",
+            reservation.id,
+            f"Cancelled booking for {reservation.user.full_name if reservation.user else 'user'}",
+        )
+        db.commit()
     return _to_out(reservation)
 
 
@@ -173,7 +192,7 @@ def admin_update_reservation(
     reservation_id: int,
     data: ReservationUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin),
 ):
     reservation = (
         db.query(Reservation)
@@ -197,6 +216,15 @@ def admin_update_reservation(
         .filter(Reservation.id == reservation.id)
         .first()
     )
+    record_audit(
+        db,
+        admin_user,
+        "update_reservation",
+        "reservation",
+        reservation.id,
+        f"Updated booking on {data.date}",
+    )
+    db.commit()
     return _to_out(reservation)
 
 
@@ -243,4 +271,13 @@ def book_team_desks(
     )
     for reservation in results:
         _notify_admins_reservation_created(db, reservation)
+    record_audit(
+        db,
+        current_user,
+        "team_booking",
+        "reservation",
+        None,
+        f"Booked {len(created)} desk(s) for team on {data.date}",
+    )
+    db.commit()
     return [_to_out(r) for r in results]

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { addDays, format } from 'date-fns';
 import { Calendar, Filter, Layers, LocateFixed } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -19,7 +19,9 @@ import {
 import DeskDetailPanel from '../components/DeskDetailPanel';
 import ResourceDetailsModal from '../components/ResourceDetailsModal';
 import PageHeader from '../components/ui/PageHeader';
+import { formatApiError } from '../lib/apiError';
 import { ZONE_OPTIONS } from '../lib/constants';
+import { getAlternativeDesks, isResourceAvailable, isResourceReservedByOther } from '../lib/desks';
 import { useAuth } from '../context/AuthContext';
 import { sortByNaturalName } from '../lib/sort';
 
@@ -85,7 +87,7 @@ export default function FloorPlan() {
 
   useEffect(() => {
     if (nearTeam && canUseTeamDeskFinder) {
-      getTeamDeskRecommendations().then((data) => {
+      getTeamDeskRecommendations(date).then((data) => {
       setTeamHint(
           data.team_zone
             ? `Team desks are usually near ${data.team_zone}`
@@ -147,11 +149,12 @@ export default function FloorPlan() {
 
   const plan = plans.find((p) => p.floor === floor);
   const maxDate = format(addDays(new Date(), 14), 'yyyy-MM-dd');
+  const alternativeDesks = selected ? getAlternativeDesks(resources, selected) : [];
 
   const getStatus = (r) => {
     if (selected?.id === r.id) return 'selected';
     if (r.is_mine) return 'mine';
-    if (!r.is_available) return 'reserved';
+    if (isResourceReservedByOther(r)) return 'reserved';
     return 'available';
   };
 
@@ -163,6 +166,10 @@ export default function FloorPlan() {
 
   const handleBook = async () => {
     if (!selected) return;
+    if (isResourceReservedByOther(selected)) {
+      setMessage('This desk is already reserved. Choose an available desk.');
+      return;
+    }
     setBooking(true);
     setMessage('');
     try {
@@ -199,11 +206,18 @@ export default function FloorPlan() {
       setShowRecurring(false);
       setRecurringWeeks(0);
     } catch (err) {
-      const msg =
-        err?.response?.data?.detail ??
-        'Booking failed';
-      setMessage(String(msg));
-      toast.error(String(msg));
+      const msg = formatApiError(err, 'Booking failed');
+      if (msg.toLowerCase().includes('already booked') && selected) {
+        const alternatives = getAlternativeDesks(resources, selected);
+        if (alternatives.length) {
+          setMessage(`${msg} Try ${alternatives[0].name} on floor ${alternatives[0].floor}.`);
+        } else {
+          setMessage(msg);
+        }
+      } else {
+        setMessage(msg);
+      }
+      toast.error(msg);
     } finally {
       setBooking(false);
     }
@@ -250,8 +264,9 @@ export default function FloorPlan() {
       setRecurringWeeks(0);
       toast.success('Team desks reserved.');
     } catch (err) {
-      setTeamBookingMessage(String(err?.response?.data?.detail ?? 'Could not reserve team desks.'));
-      toast.error(String(err?.response?.data?.detail ?? 'Could not reserve team desks.'));
+      const msg = formatApiError(err, 'Could not reserve team desks.');
+      setTeamBookingMessage(msg);
+      toast.error(msg);
     } finally {
       setTeamBookingBusy(false);
     }
@@ -286,7 +301,7 @@ export default function FloorPlan() {
           : updated,
       );
     } catch (err) {
-      const errorMessage = String(err?.response?.data?.detail ?? 'Could not update favorites.');
+      const errorMessage = formatApiError(err, 'Could not update favorites.');
       setMessage(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -319,6 +334,11 @@ export default function FloorPlan() {
           Team desk recommendations are available only to employees who are assigned to a team.
         </div>
       )}
+
+      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        Green desks are free for {format(new Date(date + 'T12:00:00'), 'MMM d')}. Red desks are already booked.
+        One desk per day, no double booking.
+      </div>
 
       <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
         <div>
@@ -469,6 +489,11 @@ export default function FloorPlan() {
             onBook={handleBook}
             onBookTeam={openTeamBooking}
             onMoreDetails={openDetails}
+            onSelectAlternative={(deskOption) => {
+              setSelected(deskOption);
+              setMessage('');
+            }}
+            alternativeDesks={alternativeDesks}
             booking={booking}
             favoriteBusy={favoriteBusy}
             onToggleFavorite={handleToggleFavorite}
@@ -534,7 +559,12 @@ export default function FloorPlan() {
                 </select>
               </div>
               {teamMembers.length === 0 ? (
-                <p className="text-sm text-slate-500">No team members found for your account.</p>
+                <div className="space-y-3 text-sm text-slate-500">
+                  <p>No team members are assigned yet.</p>
+                  <Link to="/team" className="font-medium text-brand-600 hover:text-brand-700">
+                    Go to My Team to add employees
+                  </Link>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {teamMembers.map((member) => (
@@ -555,7 +585,7 @@ export default function FloorPlan() {
                       >
                         <option value="">Select a desk</option>
                         {resources
-                          .filter((r) => r.type === 'desk' && r.is_available)
+                          .filter((r) => r.type === 'desk' && isResourceAvailable(r))
                           .map((resource) => (
                             <option key={resource.id} value={resource.id}>
                               {resource.name} - Floor {resource.floor}
@@ -660,7 +690,7 @@ export default function FloorPlan() {
                 <td className="px-6 py-3.5">
                   {r.is_mine ? (
                     <span className="badge-blue">Mine</span>
-                  ) : r.is_available ? (
+                  ) : isResourceAvailable(r) ? (
                     <span className="badge-green">Available</span>
                   ) : (
                     <span className="badge-red">Taken</span>

@@ -2,11 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   assignTeamMembers,
   deleteUser,
+  downloadUsersCsv,
   getUsers,
   registerUser,
   updateUser,
 } from '../../api/client';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import PageHeader from '../../components/ui/PageHeader';
+import { formatApiError } from '../../lib/apiError';
+import {
+  emailDomainHint,
+  emailValidationError,
+} from '../../lib/email';
 
 const ROLE_LABELS = {
   employee: 'Employee',
@@ -14,12 +21,24 @@ const ROLE_LABELS = {
   admin: 'Office Manager',
 };
 
+const TEAM_NAMES = ['Product', 'Operations', 'Platform', 'Engineering', 'Design'];
+
 const EMPTY_FORM = {
   email: '',
   full_name: '',
   job_title: '',
   role: 'employee',
+  team_name: '',
 };
+
+function saveBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -27,30 +46,37 @@ export default function Users() {
   const [showForm, setShowForm] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [teamAssignments, setTeamAssignments] = useState({});
-  const [feedback, setFeedback] = useState(null);
+  const [leaderTeamNames, setLeaderTeamNames] = useState({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [createdPassword, setCreatedPassword] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const editingUser = useMemo(
-    () => users.find((user) => user.id === editingUserId) ?? null,
-    [users, editingUserId]
+  const employees = useMemo(
+    () => users.filter((user) => user.role === 'employee'),
+    [users],
   );
 
-  const load = () => getUsers().then(setUsers);
+  const load = () => getUsers().then((data) => {
+    setUsers(data);
+    const assignments = {};
+    const teamNames = {};
+    data.forEach((user) => {
+      if (user.role === 'team_leader') {
+        teamNames[user.id] = user.team_name ?? '';
+        assignments[user.id] = data
+          .filter((candidate) => candidate.team_leader_id === user.id)
+          .map((candidate) => candidate.id);
+      }
+    });
+    setTeamAssignments(assignments);
+    setLeaderTeamNames(teamNames);
+  });
 
   useEffect(() => {
     load();
   }, []);
-
-  useEffect(() => {
-    if (!editingUser) return;
-    setForm({
-      email: editingUser.email,
-      full_name: editingUser.full_name,
-      job_title: editingUser.job_title ?? '',
-      role: editingUser.role,
-    });
-    setShowForm(true);
-  }, [editingUser]);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -60,52 +86,42 @@ export default function Users() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFeedback(null);
+    setError('');
+    setSuccess('');
     setCreatedPassword('');
-    const payload = {
-      full_name: form.full_name.trim(),
-      job_title: form.job_title.trim() || undefined,
-      role: form.role,
-    };
+    if (!editingUserId) {
+      const emailError = emailValidationError(form.email);
+      if (emailError) {
+        setError(emailError);
+        return;
+      }
+    }
 
     try {
       if (editingUserId) {
-        await updateUser(editingUserId, payload);
-        setFeedback({ type: 'success', text: 'User updated successfully.' });
+        await updateUser(editingUserId, {
+          full_name: form.full_name,
+          role: form.role,
+          job_title: form.job_title || undefined,
+          team_name: form.role === 'team_leader' ? form.team_name || undefined : undefined,
+        });
+        setSuccess('User updated successfully.');
       } else {
         const created = await registerUser({
-          ...form,
           email: form.email.trim().toLowerCase(),
-          full_name: form.full_name.trim(),
-          job_title: form.job_title.trim() || undefined,
+          full_name: form.full_name,
+          role: form.role,
+          job_title: form.job_title || undefined,
+          team_name: form.role === 'team_leader' ? form.team_name || undefined : undefined,
         });
         setCreatedPassword(created.temporary_password || '');
-        setFeedback({
-          type: 'success',
-          text: 'User created successfully. If email delivery fails, copy the temporary password below.',
-        });
+        setSuccess('User created successfully.');
       }
-
       resetForm();
       load();
-    } catch (error) {
-      const detail = error?.response?.data?.detail;
-      setFeedback({
-        type: 'error',
-        text: Array.isArray(detail)
-          ? detail.map((item) => item.msg).join(' ')
-          : String(detail || 'Could not save this user.'),
-      });
+    } catch (err) {
+      setError(formatApiError(err, 'Could not save user.'));
     }
-  };
-
-  const handleDelete = async (user) => {
-    if (!window.confirm(`Delete ${user.full_name}? This cannot be undone.`)) return;
-    setFeedback(null);
-    await deleteUser(user.id);
-    setFeedback({ type: 'success', text: 'User deleted.' });
-    if (editingUserId === user.id) resetForm();
-    load();
   };
 
   const handleEdit = (user) => {
@@ -115,13 +131,46 @@ export default function Users() {
       full_name: user.full_name,
       job_title: user.job_title ?? '',
       role: user.role,
+      team_name: user.team_name ?? '',
     });
     setShowForm(true);
+    setError('');
+    setSuccess('');
+    setCreatedPassword('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+    try {
+      await deleteUser(deleteTarget.id);
+      setSuccess(`${deleteTarget.full_name} was deleted.`);
+      if (editingUserId === deleteTarget.id) resetForm();
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      setError(String(err?.response?.data?.detail ?? 'Could not delete user.'));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSyncTeam = async (leaderId) => {
-    await assignTeamMembers(leaderId, teamAssignments[leaderId] ?? []);
-    load();
+    setError('');
+    setSuccess('');
+    try {
+      await assignTeamMembers(
+        leaderId,
+        teamAssignments[leaderId] ?? [],
+        leaderTeamNames[leaderId] || undefined,
+      );
+      setSuccess('Team updated successfully.');
+      load();
+    } catch (err) {
+      setError(String(err?.response?.data?.detail ?? 'Could not update team.'));
+    }
   };
 
   const updateTeamSelection = (leaderId, teammateId, checked) => {
@@ -146,30 +195,40 @@ export default function Users() {
       <PageHeader
         title="Users"
         subtitle="Manage employees and access roles"
-        action={
-          <button
-            type="button"
-            onClick={() => {
-              setEditingUserId(null);
-              setForm(EMPTY_FORM);
-              setShowForm(!showForm);
-            }}
-            className="btn-primary"
-          >
-            Add User
-          </button>
-        }
+        action={(
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const blob = await downloadUsersCsv();
+                saveBlob(blob, 'deskdibs-users.csv');
+              }}
+              className="btn-secondary"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="btn-primary"
+            >
+              Add user
+            </button>
+          </div>
+        )}
       />
 
-      {feedback && (
-        <div
-          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
-            feedback.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-red-200 bg-red-50 text-red-700'
-          }`}
-        >
-          {feedback.text}
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
         </div>
       )}
 
@@ -189,7 +248,7 @@ export default function Users() {
             </button>
           </div>
           <p className="mt-2 text-xs text-brand-700">
-            Share this password with the user so they can sign in and change it on first login.
+            Share this password with the user if email is not configured.
           </p>
         </div>
       )}
@@ -205,7 +264,7 @@ export default function Users() {
           />
           <input
             type="email"
-            placeholder="Email address"
+            placeholder={`Email (name.surname${emailDomainHint()})`}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="input-field"
@@ -221,15 +280,32 @@ export default function Users() {
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
-            className="input-field sm:col-span-2"
+            className="input-field"
           >
             <option value="employee">Employee</option>
             <option value="team_leader">Team Leader</option>
             <option value="admin">Office Manager</option>
           </select>
-          <div className="flex gap-3 sm:col-span-2">
+          {form.role === 'team_leader' && (
+            <select
+              value={form.team_name}
+              onChange={(e) => setForm({ ...form, team_name: e.target.value })}
+              className="input-field sm:col-span-2"
+            >
+              <option value="">Select team name</option>
+              {TEAM_NAMES.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          )}
+          {!editingUserId && (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500 sm:col-span-2">
+              Only company emails ending with {emailDomainHint()} are allowed.
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3 sm:col-span-2">
             <button type="submit" className="btn-primary">
-              {editingUserId ? 'Save Changes' : 'Create User'}
+              {editingUserId ? 'Save changes' : 'Create user'}
             </button>
             <button
               type="button"
@@ -242,8 +318,8 @@ export default function Users() {
         </form>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto">
+        <table className="min-w-[860px] w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3">Name</th>
@@ -261,45 +337,55 @@ export default function Users() {
                 <td className="px-4 py-3.5 text-slate-600">{u.job_title ?? '—'}</td>
                 <td className="px-4 py-3.5 text-slate-600">{u.email}</td>
                 <td className="px-4 py-3.5">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${roleBadge(u.role)}`}
-                  >
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${roleBadge(u.role)}`}>
                     {ROLE_LABELS[u.role]}
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
                   {u.role === 'team_leader' ? (
                     <div className="space-y-2">
+                      <select
+                        value={leaderTeamNames[u.id] ?? ''}
+                        onChange={(e) =>
+                          setLeaderTeamNames((prev) => ({ ...prev, [u.id]: e.target.value }))
+                        }
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
+                      >
+                        <option value="">Team name</option>
+                        {TEAM_NAMES.map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
                       <div className="max-h-28 overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-xs">
-                        {users
-                          .filter((candidate) => candidate.role === 'employee')
-                          .map((candidate) => (
-                            <label
-                              key={candidate.id}
-                              className="flex items-center gap-2 py-1 text-slate-700"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={(teamAssignments[u.id] ?? []).includes(candidate.id)}
-                                onChange={(e) =>
-                                  updateTeamSelection(u.id, candidate.id, e.target.checked)
-                                }
-                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                              />
-                              {candidate.full_name}
-                            </label>
-                          ))}
+                        {employees.map((candidate) => (
+                          <label
+                            key={candidate.id}
+                            className="flex items-center gap-2 py-1 text-slate-700"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={(teamAssignments[u.id] ?? []).includes(candidate.id)}
+                              onChange={(e) =>
+                                updateTeamSelection(u.id, candidate.id, e.target.checked)
+                              }
+                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                            />
+                            <span>{candidate.full_name}</span>
+                          </label>
+                        ))}
                       </div>
                       <button
                         type="button"
                         onClick={() => handleSyncTeam(u.id)}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
-                        Sync team
+                        Save team
                       </button>
                     </div>
+                  ) : u.team_leader_id ? (
+                    <span className="text-slate-600">{u.team_name ?? 'Assigned team'}</span>
                   ) : (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-slate-400">Unassigned</span>
                   )}
                 </td>
                 <td className="px-4 py-3.5">
@@ -313,8 +399,8 @@ export default function Users() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(u)}
-                      disabled={u.role === 'admin' && u.email === 'sarah.chen@genpact.com'}
+                      onClick={() => setDeleteTarget(u)}
+                      disabled={u.email === 'sarah.chen@genpact.com'}
                       className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Delete
@@ -326,6 +412,23 @@ export default function Users() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete user?"
+        message={
+          deleteTarget
+            ? `Delete ${deleteTarget.full_name}? This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete user"
+        cancelLabel="Cancel"
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

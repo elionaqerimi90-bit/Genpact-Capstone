@@ -1,18 +1,92 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import csv
+import io
 
 from app.auth import get_current_user, require_admin
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.search import SearchResults, SearchResourceResult, SearchUserResult
-from app.schemas import TeamAssignment
+from app.services.audit import record_audit
+from app.schemas.team import TeamAssignment, TeamProfileUpdate
 from app.schemas.auth import UserOut, UserUpdate
 from app.models.resource import Resource
 from app.models.reservation import Reservation
 from app.models.favorite import Favorite
-from app.models.user import UserRole
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def _sync_team_members(
+    db: Session,
+    leader: User,
+    teammate_ids: list[int],
+    team_name: str | None = None,
+    *,
+    allow_reassign: bool = False,
+    actor: User | None = None,
+) -> User:
+    if leader.role != UserRole.team_leader:
+        raise HTTPException(status_code=400, detail="Selected user is not a team leader")
+
+    if team_name is not None:
+        cleaned_name = team_name.strip()
+        if cleaned_name:
+            leader.team_name = cleaned_name
+
+    selected_ids = set(teammate_ids)
+    teammates = db.query(User).filter(User.id.in_(selected_ids)).all() if selected_ids else []
+
+    if len(teammates) != len(selected_ids):
+        raise HTTPException(status_code=404, detail="One or more team members were not found")
+
+    for teammate in teammates:
+        if teammate.role != UserRole.employee:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{teammate.full_name} cannot be added to a team (employees only)",
+            )
+        if teammate.id == leader.id:
+            raise HTTPException(status_code=400, detail="A team leader cannot be their own teammate")
+        if (
+            teammate.team_leader_id is not None
+            and teammate.team_leader_id != leader.id
+            and not allow_reassign
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{teammate.full_name} is already assigned to another team",
+            )
+
+    current_teammates = (
+        db.query(User).filter(User.team_leader_id == leader.id).all()
+    )
+    for member in current_teammates:
+        if member.id not in selected_ids:
+            member.team_leader_id = None
+            if leader.team_name and member.team_name == leader.team_name:
+                member.team_name = None
+
+    resolved_team_name = leader.team_name
+    for teammate in teammates:
+        teammate.team_leader_id = leader.id
+        if resolved_team_name:
+            teammate.team_name = resolved_team_name
+
+    db.commit()
+    db.refresh(leader)
+    if actor:
+        record_audit(
+            db,
+            actor,
+            "assign_team",
+            "team",
+            leader.id,
+            f"Updated team '{leader.team_name or leader.full_name}' with {len(teammate_ids)} member(s)",
+        )
+        db.commit()
+    return leader
 
 
 @router.get("/search", response_model=SearchResults)
@@ -98,28 +172,86 @@ def list_team_members(
     return teammates
 
 
+@router.get("/available-for-team", response_model=list[UserOut])
+def list_available_for_team(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in (UserRole.team_leader, UserRole.admin):
+        raise HTTPException(status_code=403, detail="Team management access required")
+
+    query = db.query(User).filter(User.role == UserRole.employee)
+    if current_user.role == UserRole.team_leader:
+        query = query.filter(
+            (User.team_leader_id.is_(None)) | (User.team_leader_id == current_user.id)
+        )
+    query = query.order_by(User.full_name)
+    return query.all()
+
+
+@router.put("/me/team", response_model=UserOut)
+def update_my_team(
+    data: TeamProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.team_leader:
+        raise HTTPException(status_code=403, detail="Team leader access required")
+    return _sync_team_members(
+        db,
+        current_user,
+        data.teammate_ids,
+        data.team_name,
+        allow_reassign=False,
+        actor=current_user,
+    )
+
+
 @router.post("/{leader_id}/team", response_model=UserOut)
 def assign_team_members(
     leader_id: int,
     data: TeamAssignment,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin),
 ):
     leader = db.get(User, leader_id)
     if not leader:
         raise HTTPException(status_code=404, detail="User not found")
-    for teammate in db.query(User).filter(User.id.in_(data.teammate_ids)).all():
-        teammate.team_leader_id = leader.id
-    db.commit()
-    db.refresh(leader)
-    return leader
+    return _sync_team_members(
+        db,
+        leader,
+        data.teammate_ids,
+        data.team_name,
+        allow_reassign=True,
+        actor=admin_user,
+    )
 
 
-@router.get("/me", response_model=UserOut)
-def get_my_profile(
-    current_user: User = Depends(get_current_user),
+@router.get("/export")
+def export_users_csv(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
-    return current_user
+    users = db.query(User).order_by(User.full_name).all()
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["id", "full_name", "email", "role", "job_title", "team_name", "team_leader_id"])
+    for user in users:
+        writer.writerow([
+            user.id,
+            user.full_name,
+            user.email,
+            user.role.value,
+            user.job_title or "",
+            user.team_name or "",
+            user.team_leader_id or "",
+        ])
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=deskdibs-users.csv"},
+    )
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -127,7 +259,7 @@ def update_user(
     user_id: int,
     data: UserUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin),
 ):
     user = db.get(User, user_id)
     if not user:
@@ -149,6 +281,15 @@ def update_user(
 
     db.commit()
     db.refresh(user)
+    record_audit(
+        db,
+        admin_user,
+        "update_user",
+        "user",
+        user.id,
+        f"Updated {user.email}",
+    )
+    db.commit()
     return user
 
 
@@ -165,6 +306,7 @@ def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    email = user.email
     db.query(User).filter(User.team_leader_id == user.id).update(
         {User.team_leader_id: None}, synchronize_session=False
     )
@@ -175,5 +317,13 @@ def delete_user(
         synchronize_session=False
     )
     db.delete(user)
+    record_audit(
+        db,
+        current_user,
+        "delete_user",
+        "user",
+        user_id,
+        f"Deleted {email}",
+    )
     db.commit()
     return {"detail": "User deleted"}

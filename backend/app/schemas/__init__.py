@@ -5,7 +5,7 @@ from app.schemas.recommendation import TeamDeskRecommendation
 from app.schemas.reservation import ReservationCreate, ReservationOut
 from app.schemas.search import SearchResults
 from app.schemas.resource import ResourceCreate, ResourceOut, ResourceUpdate
-from app.schemas.team import TeamAssignment
+from app.schemas.team import TeamAssignment, TeamProfileUpdate
 
 __all__ = [
     "Token",
@@ -22,4 +22,5 @@ __all__ = [
     "AnalyticsDashboard",
     "TeamDeskRecommendation",
     "TeamAssignment",
+    "TeamProfileUpdate",
 ]
