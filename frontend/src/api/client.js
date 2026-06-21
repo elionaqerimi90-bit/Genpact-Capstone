@@ -3,9 +3,6 @@ import axios from 'axios';
 function resolveApiBaseUrl() {
   const fromEnv = import.meta.env.VITE_API_URL?.trim();
   if (fromEnv) return fromEnv;
-  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
-    return 'https://deskdibs-backend.vercel.app/api';
-  }
   return '/api';
 }
 

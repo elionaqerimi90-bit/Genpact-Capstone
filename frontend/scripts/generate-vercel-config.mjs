@@ -3,13 +3,6 @@ import fs from 'fs';
 const raw = (process.env.VITE_API_URL || process.env.BACKEND_URL || '').trim();
 const backendBase = raw.replace(/\/api\/?$/, '');
 
-if (process.env.VERCEL && !backendBase) {
-  console.error(
-    'VITE_API_URL is required on Vercel. Example: https://your-backend.vercel.app/api',
-  );
-  process.exit(1);
-}
-
 const rewrites = [];
 
 if (backendBase) {
