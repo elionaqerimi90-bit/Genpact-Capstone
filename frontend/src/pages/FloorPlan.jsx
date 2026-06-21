@@ -734,7 +734,40 @@ export default function FloorPlan() {
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="font-semibold text-slate-900">All Resources</h3>
         </div>
-        <table className="w-full text-sm">
+        <div className="divide-y divide-slate-100 p-3 sm:hidden">
+          {resources.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setSelected(r)}
+              className="w-full rounded-xl px-3 py-3 text-left transition hover:bg-brand-50/40"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900">{r.name}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Floor {r.floor} - {r.zone}
+                  </p>
+                </div>
+                {r.is_mine ? (
+                  <span className="badge-blue shrink-0">Mine</span>
+                ) : isResourceAvailable(r) ? (
+                  <span className="badge-green shrink-0">Available</span>
+                ) : (
+                  <span className="badge-red shrink-0">Taken</span>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 capitalize">{r.type}</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1">{r.desk_type ?? 'Standard'}</span>
+              </div>
+            </button>
+          ))}
+          {resources.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-400">No resources found for this floor.</p>
+          )}
+        </div>
+        <table className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <th className="px-6 py-3">Name</th>
