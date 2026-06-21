@@ -551,8 +551,10 @@ export default function FloorBuilder() {
                         key={resource.id}
                         role="button"
                         tabIndex={0}
+                        title={`${resource.name} - ${resource.zone}`}
                         onMouseDown={(event) => {
                           event.stopPropagation();
+                          setSelected(resource);
                           setDragging(resource.id);
                         }}
                         onMouseMove={(e) => dragging === resource.id && handleDrag(e, resource)}
@@ -562,13 +564,14 @@ export default function FloorBuilder() {
                           left: `${resource.floor_plan_x}%`,
                           top: `${resource.floor_plan_y}%`,
                         }}
-                        className="absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-emerald-500 ring-2 ring-emerald-300"
+                        className={`group absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white shadow-md transition hover:scale-125 focus:outline-none focus:ring-4 ${
+                          selected?.id === resource.id
+                            ? 'bg-amber-400 ring-4 ring-amber-300'
+                            : 'bg-emerald-500 ring-2 ring-emerald-300 focus:ring-emerald-200'
+                        }`}
+                        aria-label={`${resource.name} pin`}
                       >
-                        <span
-                          className={`pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium text-white shadow ${
-                            selected?.id === resource.id ? 'bg-yellow-500 ring-2 ring-yellow-300' : 'bg-brand-600'
-                          }`}
-                        >
+                        <span className="pointer-events-none absolute left-1/2 top-7 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg group-hover:block group-focus:block">
                           {resource.name}
                         </span>
                       </div>
