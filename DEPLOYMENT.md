@@ -10,7 +10,7 @@ This app deploys as one Vercel project with:
 Set these in the Vercel project for production:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/DBNAME?sslmode=require
+DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_DB_PASSWORD@aws-REGION.pooler.supabase.com:6543/postgres?sslmode=require
 SECRET_KEY=generate-a-long-random-secret
 INITIAL_ADMIN_EMAIL=your-admin@email.com
 INITIAL_ADMIN_PASSWORD=temporary-password
@@ -22,11 +22,17 @@ ADMIN_NOTIFICATION_EMAIL=admin@example.com
 FRONTEND_BASE_URL=https://deskdibs.vercel.app
 ```
 
-## Neon
+## Supabase
 
-- Create or connect a Neon Postgres database to the Vercel project.
-- Copy the Neon connection string into `DATABASE_URL`.
+- Create or open the Supabase project.
+- Go to **Project Settings -> Database -> Connection string**.
+- Copy the **Transaction pooler** connection string into `DATABASE_URL`.
 - Make sure `sslmode=require` is included.
+- For this project, the URL should look like:
+
+```env
+DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_DB_PASSWORD@aws-REGION.pooler.supabase.com:6543/postgres?sslmode=require
+```
 
 ## Vercel Blob
 
