@@ -11,7 +11,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { addDays, format, parseISO } from 'date-fns';
 import { DESK_IMAGES } from '../lib/constants';
 import { isResourceAvailable, isResourceReservedByOther } from '../lib/desks';
@@ -69,10 +69,18 @@ export default function ResourceDetailsModal({
     };
   }, [desk.is_available, selectedDate]);
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
-      <div className="grid max-h-[92vh] w-full overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-slate-900/50 p-0 sm:items-center sm:p-4">
+      <div className="grid max-h-[92vh] w-full overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain border-b border-slate-200 bg-slate-50 lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <button
               type="button"
@@ -119,7 +127,7 @@ export default function ResourceDetailsModal({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-auto p-6">
+        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm text-slate-500">{desk.desk_type ?? getLabelForType(desk.type)}</p>
