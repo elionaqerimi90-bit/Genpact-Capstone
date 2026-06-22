@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { Armchair, CalendarCheck, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { OFFICE_HERO } from '../lib/constants';
 import { emailDomainHint, emailValidationError } from '../lib/email';
@@ -50,7 +51,110 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen bg-slate-950 lg:flex">
+      <div className="relative min-h-screen overflow-hidden lg:hidden">
+        <img src={OFFICE_HERO} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-950/95 via-brand-900/90 to-slate-950" />
+        <div className="relative flex min-h-screen flex-col px-5 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/20 backdrop-blur">
+                D
+              </div>
+              <div>
+                <div className="text-lg font-bold leading-tight">DeskDibs</div>
+                <div className="text-xs text-brand-100">Hot-desking platform</div>
+              </div>
+            </div>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/15">
+              HQ
+            </span>
+          </div>
+
+          <div className="mt-10 text-white">
+            <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/15">
+              <Armchair size={13} />
+              Reserve seats faster
+            </p>
+            <h1 className="mt-4 text-3xl font-bold leading-tight">
+              Welcome back
+            </h1>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-brand-100">
+              Sign in to book desks, manage reservations, and see office availability in real time.
+            </p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 text-white">
+            <div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/15 backdrop-blur">
+              <CalendarCheck size={17} />
+              <p className="mt-2 text-xs font-medium">Manage bookings</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/15 backdrop-blur">
+              <Armchair size={17} />
+              <p className="mt-2 text-xs font-medium">Find open seats</p>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-white/15 bg-white p-5 shadow-2xl">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+                <div className="relative">
+                  <Mail size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={`you${emailDomainHint()}`}
+                    className="input-field pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
+                <div className="relative">
+                  <LockKeyhole size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="input-field pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex cursor-pointer items-center gap-2 text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                  />
+                  Remember me
+                </label>
+                <button type="button" className="font-medium text-brand-600">
+                  Forgot?
+                </button>
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={submitting} className="btn-primary w-full py-3">
+                {submitting ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <div className="relative hidden w-[52%] overflow-hidden lg:block">
         <img src={OFFICE_HERO} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-800/85 to-brand-700/80" />
@@ -81,7 +185,7 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-center bg-white px-8 py-12 sm:px-16">
+      <div className="hidden flex-1 flex-col justify-center bg-white px-8 py-12 sm:px-16 lg:flex">
         <div className="mx-auto w-full max-w-[400px]">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">
