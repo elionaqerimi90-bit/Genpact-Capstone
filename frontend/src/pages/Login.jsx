@@ -51,11 +51,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 lg:flex">
-      <div className="relative min-h-screen overflow-hidden lg:hidden">
-        <img src={OFFICE_HERO} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+    <div className="min-h-[100dvh] bg-slate-950 lg:flex">
+      <div className="relative min-h-[100dvh] overflow-hidden bg-slate-950 lg:hidden">
+        <img src={OFFICE_HERO} alt="" className="fixed inset-0 h-[100dvh] w-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-b from-brand-950/95 via-brand-900/90 to-slate-950" />
-        <div className="relative flex min-h-screen flex-col px-5 py-6">
+        <div className="relative flex min-h-[100dvh] flex-col px-5 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-white">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/20 backdrop-blur">
@@ -106,7 +106,7 @@ export default function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={`you${emailDomainHint()}`}
-                    className="input-field pl-10"
+                    className="input-field !pl-10"
                     required
                   />
                 </div>
@@ -120,7 +120,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
-                    className="input-field pl-10"
+                    className="input-field !pl-10"
                     required
                   />
                 </div>
