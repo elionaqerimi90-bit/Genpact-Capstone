@@ -369,6 +369,14 @@ export default function FloorPlan() {
     setDetailsOpen(true);
   };
 
+  const selectResource = (resource) => {
+    setSelected(resource);
+    setMessage('');
+    if (window.matchMedia('(max-width: 1279px)').matches) {
+      setDetailsOpen(true);
+    }
+  };
+
   const closeDetails = () => {
     setDetailsOpen(false);
   };
@@ -518,7 +526,7 @@ export default function FloorPlan() {
                       key={r.id}
                       type="button"
                       title={`${r.name} - ${s.label}`}
-                      onClick={() => setSelected(r)}
+                      onClick={() => selectResource(r)}
                       style={{
                         left: `${r.floor_plan_x}%`,
                         top: `${r.floor_plan_y}%`,
@@ -558,8 +566,7 @@ export default function FloorPlan() {
                 onBookTeam={openTeamBooking}
                 onMoreDetails={openDetails}
                 onSelectAlternative={(deskOption) => {
-                  setSelected(deskOption);
-                  setMessage('');
+                  selectResource(deskOption);
                 }}
                 alternativeDesks={alternativeDesks}
                 booking={booking}
@@ -593,13 +600,15 @@ export default function FloorPlan() {
           <DeskDetailPanel
             desk={selected}
             date={date}
-            onClose={() => setSelected(null)}
+            onClose={() => {
+              setSelected(null);
+              setDetailsOpen(false);
+            }}
             onBook={handleBook}
             onBookTeam={openTeamBooking}
             onMoreDetails={openDetails}
             onSelectAlternative={(deskOption) => {
-              setSelected(deskOption);
-              setMessage('');
+              selectResource(deskOption);
             }}
             alternativeDesks={alternativeDesks}
             booking={booking}
@@ -783,7 +792,7 @@ export default function FloorPlan() {
             <button
               key={r.id}
               type="button"
-              onClick={() => setSelected(r)}
+              onClick={() => selectResource(r)}
               className="w-full rounded-xl px-3 py-3 text-left transition hover:bg-brand-50/40"
             >
               <div className="flex items-start justify-between gap-3">
@@ -827,7 +836,7 @@ export default function FloorPlan() {
               <tr
                 key={r.id}
                 className="cursor-pointer border-t border-slate-100 transition hover:bg-brand-50/30"
-                onClick={() => setSelected(r)}
+                onClick={() => selectResource(r)}
               >
                 <td className="px-6 py-3.5 font-medium text-slate-900">{r.name}</td>
                 <td className="px-6 py-3.5 text-slate-600">{r.floor}</td>
