@@ -17,7 +17,6 @@ import {
   Building2,
   CalendarCheck,
   LocateFixed,
-  Map,
   Percent,
   Plus,
 } from 'lucide-react';
@@ -125,7 +124,7 @@ export default function Dashboard() {
               </Link>
             )}
             <Link to="/floor-plan" className="btn-secondary w-full py-3">
-              <Map size={18} /> View Floor Plan
+              <Armchair size={18} /> Reserve a seat
             </Link>
           </div>
         </div>

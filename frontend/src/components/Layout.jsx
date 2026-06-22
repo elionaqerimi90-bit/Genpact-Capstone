@@ -6,6 +6,7 @@ import {
   Building2,
   Calendar,
   ChevronDown,
+  Armchair,
   LayoutDashboard,
   LogOut,
   Map,
@@ -20,7 +21,7 @@ import { getRecentActivity, searchWorkspace } from '../api/client';
 const employeeLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/reservations', icon: Calendar, label: 'My Reservations' },
-  { to: '/floor-plan', icon: Map, label: 'Floor Plan' },
+  { to: '/floor-plan', icon: Armchair, label: 'Reserve a seat' },
 ];
 
 const managerLinks = [

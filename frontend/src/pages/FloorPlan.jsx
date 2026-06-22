@@ -351,7 +351,7 @@ export default function FloorPlan() {
   return (
     <div>
       <PageHeader
-        title="Interactive Floor Plan"
+        title="Reserve a seat"
         subtitle="Browse availability and reserve desks or meeting rooms visually"
       />
       {nearTeam && canUseTeamDeskFinder && (
