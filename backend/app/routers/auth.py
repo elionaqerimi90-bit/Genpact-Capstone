@@ -110,8 +110,9 @@ def register(
     )
     db.commit()
 
-    return UserCreateResponse.model_validate(user).model_copy(
-        update={"temporary_password": temporary_password}
+    return UserCreateResponse(
+        **UserOut.model_validate(user).model_dump(),
+        temporary_password=temporary_password,
     )
 
 
