@@ -20,6 +20,17 @@ body {
   font-family: var(--font-sans);
 }
 
+* {
+  min-width: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 .card {
   @apply rounded-xl border border-slate-200/80 bg-white;
   box-shadow: var(--shadow-card);
@@ -65,4 +76,20 @@ body {
 
 .Toastify__toast-body {
   @apply items-start;
+}
+
+@media (max-width: 640px) {
+  .card,
+  .card-elevated {
+    @apply rounded-xl;
+  }
+
+  table {
+    @apply min-w-full;
+  }
+
+  th,
+  td {
+    @apply whitespace-normal break-words;
+  }
 }
