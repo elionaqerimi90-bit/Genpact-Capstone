@@ -477,7 +477,7 @@ export default function FloorPlan() {
           </div>
         </aside>
 
-        <div className="relative flex min-h-[520px] min-w-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
+        <div className="relative isolate flex min-h-[520px] min-w-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
           {initialLoading || resourcesLoading ? (
             <div className="w-full space-y-4 p-4">
               <SkeletonBlock className="h-[320px] w-full rounded-xl" />
@@ -488,7 +488,7 @@ export default function FloorPlan() {
               </div>
             </div>
           ) : plan ? (
-            <div className="relative max-h-[720px] w-full">
+            <div className="relative isolate max-h-[720px] w-full">
               {!missingPlanImages[plan.id] ? (
                 <img
                   src={plan.image_url}
@@ -523,7 +523,7 @@ export default function FloorPlan() {
                         left: `${r.floor_plan_x}%`,
                         top: `${r.floor_plan_y}%`,
                       }}
-                      className={`absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-110 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${s.dot} ${s.ring}`}
+                      className={`absolute z-[1] h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-110 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${s.dot} ${s.ring}`}
                     />
                   );
                 })}
@@ -538,7 +538,7 @@ export default function FloorPlan() {
               }}
             />
           )}
-          <div className="absolute left-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow backdrop-blur">
+          <div className="absolute left-4 top-4 z-[2] rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow backdrop-blur">
             Floor {floor} · {format(new Date(date + 'T12:00:00'), 'EEE, MMM d')}
           </div>
         </div>
