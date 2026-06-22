@@ -45,6 +45,15 @@ class PasswordResetRequest(BaseModel):
     password: str
 
 
+class PasswordResetEmailRequest(BaseModel):
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
 class UserOut(BaseModel):
     id: int
     email: str

@@ -13,11 +13,19 @@ from app.auth import (
 )
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import PasswordResetRequest, Token, UserCreate, UserCreateResponse, UserOut
+from app.schemas.auth import (
+    PasswordResetEmailRequest,
+    PasswordResetRequest,
+    Token,
+    UserCreate,
+    UserCreateResponse,
+    UserOut,
+)
 from app.utils.email_validation import normalize_email, validate_allowed_email
 from app.services.audit import record_audit
 from app.services.notifications import (
     build_account_created_email,
+    build_password_reset_email,
     build_reset_link,
     generate_reset_token,
     generate_temporary_password,
@@ -114,6 +122,35 @@ def register(
         **UserOut.model_validate(user).model_dump(),
         temporary_password=temporary_password,
     )
+
+
+@router.post("/forgot-password")
+def forgot_password(data: PasswordResetEmailRequest, db: Session = Depends(get_db)):
+    email = normalize_email(data.email)
+    validate_allowed_email(email)
+    user = db.query(User).filter(User.email == email).first()
+
+    if user:
+        reset_token = generate_reset_token()
+        user.password_reset_token_hash = hash_token(reset_token)
+        user.password_reset_expires_at = reset_token_expiry()
+        db.commit()
+
+        try:
+            send_email(
+                user.email,
+                "Reset your DeskDibs password",
+                build_password_reset_email(
+                    user.full_name,
+                    build_reset_link(reset_token),
+                ),
+            )
+        except Exception as exc:
+            print(f"[mail:error] password_reset user_id={user.id} email={user.email}: {exc}")
+
+    return {
+        "detail": "If an account exists for that email, a password reset link has been sent.",
+    }
 
 
 @router.post("/reset-password")

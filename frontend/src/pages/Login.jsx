@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Armchair, CalendarCheck, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { OFFICE_HERO } from '../lib/constants';
@@ -129,9 +129,9 @@ export default function Login() {
                   />
                   Remember me
                 </label>
-                <button type="button" className="font-medium text-brand-600">
+                <Link to="/forgot-password" className="font-medium text-brand-600">
                   Forgot?
-                </button>
+                </Link>
               </div>
 
               {error && (
@@ -214,9 +214,9 @@ export default function Login() {
                 />
                 Remember me
               </label>
-              <button type="button" className="font-medium text-brand-600 hover:text-brand-700">
+              <Link to="/forgot-password" className="font-medium text-brand-600 hover:text-brand-700">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             {error && (

@@ -118,6 +118,20 @@ def build_account_created_email(full_name: str, email: str, temporary_password: 
     )
 
 
+def build_password_reset_email(full_name: str, reset_link: str) -> str:
+    return "\n".join(
+        [
+            f"Hello {full_name},",
+            "",
+            "We received a request to reset your DeskDibs password.",
+            "Use this link to choose a new password:",
+            reset_link,
+            "",
+            "This link expires in 24 hours. If you did not request this, you can ignore this email.",
+        ]
+    )
+
+
 def build_reservation_cancelled_email(reservation) -> str:
     resource_name = reservation.resource.name if reservation.resource else "your resource"
     return "\n".join(
