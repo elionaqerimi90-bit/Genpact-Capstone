@@ -273,17 +273,19 @@ def delete_resource(
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
 
-    active_reservations = (
-        db.query(Reservation)
-        .filter(
-            Reservation.resource_id == resource_id,
-            Reservation.status == ReservationStatus.active,
-        )
-        .all()
-    )
-    for reservation in active_reservations:
-        reservation.status = ReservationStatus.resource_removed
+    reservation_count = db.query(Reservation).filter(Reservation.resource_id == resource_id).count()
+    favorite_count = db.query(Favorite).filter(Favorite.resource_id == resource_id).count()
 
-    resource.is_active = False
+    db.query(Favorite).filter(Favorite.resource_id == resource_id).delete(
+        synchronize_session=False,
+    )
+    db.query(Reservation).filter(Reservation.resource_id == resource_id).delete(
+        synchronize_session=False,
+    )
+    db.delete(resource)
     db.commit()
-    return {"detail": "Resource removed", "affected_reservations": len(active_reservations)}
+    return {
+        "detail": "Resource deleted",
+        "affected_reservations": reservation_count,
+        "affected_favorites": favorite_count,
+    }
