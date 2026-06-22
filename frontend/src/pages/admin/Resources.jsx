@@ -290,11 +290,11 @@ export default function Resources() {
         }
       />
 
-      <div className="card mb-4 flex flex-wrap gap-3 p-4">
+      <div className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:flex lg:flex-wrap">
         <select
           value={filterBuilding}
           onChange={(e) => setFilterBuilding(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm lg:w-auto"
         >
           <option value="">All HQ locations</option>
           {buildingOptions.map((building) => (
@@ -306,7 +306,7 @@ export default function Resources() {
         <select
           value={filterFloor}
           onChange={(e) => setFilterFloor(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm lg:w-auto"
         >
           <option value="">All floors</option>
           {floorOptions.map((floor) => (
@@ -514,7 +514,75 @@ export default function Resources() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <div className="divide-y divide-slate-100 p-3 md:hidden">
+          {visibleResources.map((resource) => (
+            <article key={resource.id} className="rounded-xl px-2 py-3">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedResourceIds.includes(resource.id)}
+                  onChange={() => toggleResourceSelection(resource.id)}
+                  className="mt-1 rounded border-slate-300 text-brand-600"
+                  aria-label={`Select ${resource.name}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-slate-900">{resource.name}</h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {resource.building ?? 'HQ - Prishtina'}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-700">
+                      {resource.type}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <span className="rounded-lg bg-slate-50 px-2.5 py-2">
+                      <strong className="block text-slate-500">Floor</strong>
+                      {resource.floor}
+                    </span>
+                    <span className="rounded-lg bg-slate-50 px-2.5 py-2">
+                      <strong className="block text-slate-500">Zone</strong>
+                      {resource.zone}
+                    </span>
+                    <span className="col-span-2 rounded-lg bg-slate-50 px-2.5 py-2">
+                      <strong className="block text-slate-500">Desk Type</strong>
+                      {resource.desk_type ?? '-'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(resource)}
+                      className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(resource.id)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+          {visibleResources.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-400">
+              No resources found for these filters.
+            </p>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="min-w-[920px] w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-slate-500">
               <th className="px-4 py-3 font-medium">
@@ -574,7 +642,8 @@ export default function Resources() {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );

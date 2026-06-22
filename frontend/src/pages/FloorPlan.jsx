@@ -489,7 +489,7 @@ export default function FloorPlan() {
                         left: `${r.floor_plan_x}%`,
                         top: `${r.floor_plan_y}%`,
                       }}
-                      className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-125 ${s.dot} ${s.ring}`}
+                      className={`absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition hover:scale-110 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${s.dot} ${s.ring}`}
                     />
                   );
                 })}
