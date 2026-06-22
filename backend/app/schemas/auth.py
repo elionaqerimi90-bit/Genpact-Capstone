@@ -1,15 +1,10 @@
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.config import settings
 from app.models.user import UserRole
 
 
-def _validate_company_email(value: str) -> str:
-    normalized = value.strip().lower()
-    domain = settings.allowed_email_domain.lower().lstrip("@")
-    if not normalized.endswith(f"@{domain}"):
-        raise ValueError(f"Email must end with @{domain}")
-    return normalized
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
 
 
 class UserLogin(BaseModel):
@@ -19,7 +14,7 @@ class UserLogin(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email_domain(cls, value: str) -> str:
-        return _validate_company_email(value)
+        return _normalize_email(value)
 
 
 class UserCreate(BaseModel):
@@ -33,7 +28,7 @@ class UserCreate(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email_domain(cls, value: str) -> str:
-        return _validate_company_email(value)
+        return _normalize_email(value)
 
 
 class UserUpdate(BaseModel):
