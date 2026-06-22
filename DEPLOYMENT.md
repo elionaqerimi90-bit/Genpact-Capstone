@@ -10,7 +10,7 @@ This app deploys as one Vercel project with:
 Set these in the Vercel project for production:
 
 ```env
-DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_DB_PASSWORD@aws-REGION.pooler.supabase.com:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_URL_ENCODED_DB_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require
 SECRET_KEY=generate-a-long-random-secret
 INITIAL_ADMIN_EMAIL=your-admin@email.com
 INITIAL_ADMIN_PASSWORD=temporary-password
@@ -31,7 +31,7 @@ FRONTEND_BASE_URL=https://deskdibs.vercel.app
 - For this project, the URL should look like:
 
 ```env
-DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_DB_PASSWORD@aws-REGION.pooler.supabase.com:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.gxmbwmbvdfvpdbtqybcl:YOUR_URL_ENCODED_DB_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```
 
 ## Vercel Blob
