@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getRecentActivity, searchWorkspace } from '../api/client';
+import BrandMark from './BrandMark';
 
 const employeeLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -127,15 +128,7 @@ export default function Layout() {
     <>
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold shadow-lg">
-              D
-            </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight">DeskDibs</span>
-              <p className="text-[11px] text-brand-200">Hot-desking platform</p>
-            </div>
-          </div>
+          <BrandMark size={42} showWordmark />
           <button
             type="button"
             onClick={() => setMobileNavOpen(false)}

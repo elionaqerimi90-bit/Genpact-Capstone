@@ -4,6 +4,7 @@ import { Armchair, CalendarCheck, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { OFFICE_HERO } from '../lib/constants';
 import { emailDomainHint, emailValidationError } from '../lib/email';
+import BrandMark from '../components/BrandMark';
 
 export default function Login() {
   const { user, loading, login } = useAuth();
@@ -57,15 +58,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-b from-brand-950/95 via-brand-900/90 to-slate-950" />
         <div className="relative flex min-h-[100dvh] flex-col px-5 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 text-white">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/20 backdrop-blur">
-                D
-              </div>
-              <div>
-                <div className="text-lg font-bold leading-tight">DeskDibs</div>
-                <div className="text-xs text-brand-100">Hot-desking platform</div>
-              </div>
-            </div>
+            <BrandMark size={46} showWordmark />
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/15">
               HQ
             </span>
@@ -159,12 +152,7 @@ export default function Login() {
         <img src={OFFICE_HERO} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-800/85 to-brand-700/80" />
         <div className="absolute inset-0 flex flex-col justify-center px-14 text-white">
-          <div className="mb-10 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-              <span className="text-xl font-bold">D</span>
-            </div>
-            <span className="text-2xl font-bold tracking-tight">DeskDibs</span>
-          </div>
+          <BrandMark size={46} showWordmark />
           <h2 className="max-w-md text-4xl font-bold leading-tight">
             Workplace flexibility that works for you
           </h2>
@@ -187,12 +175,7 @@ export default function Login() {
 
       <div className="hidden flex-1 flex-col justify-center bg-white px-8 py-12 sm:px-16 lg:flex">
         <div className="mx-auto w-full max-w-[400px]">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">
-              D
-            </div>
-            <span className="text-xl font-bold">DeskDibs</span>
-          </div>
+          <BrandMark className="mb-8 lg:hidden" size={42} showWordmark darkText />
 
           <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
           <p className="mt-2 text-slate-500">Sign in to manage your workspace bookings</p>
