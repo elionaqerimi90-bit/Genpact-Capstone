@@ -595,42 +595,6 @@ export default function FloorPlan() {
         </aside>
       </div>
 
-      {selected && (
-        <div className="mt-4 xl:hidden">
-          <DeskDetailPanel
-            desk={selected}
-            date={date}
-            onClose={() => {
-              setSelected(null);
-              setDetailsOpen(false);
-            }}
-            onBook={handleBook}
-            onBookTeam={openTeamBooking}
-            onMoreDetails={openDetails}
-            onSelectAlternative={(deskOption) => {
-              selectResource(deskOption);
-            }}
-            alternativeDesks={alternativeDesks}
-            booking={booking}
-            favoriteBusy={favoriteBusy}
-            onToggleFavorite={handleToggleFavorite}
-            canBookTeam={user?.role === 'team_leader'}
-            canReserveRoom={user?.role === 'team_leader' || user?.role === 'manager'}
-            showRecurring={showRecurring}
-            setShowRecurring={setShowRecurring}
-            recurringWeeks={recurringWeeks}
-            setRecurringWeeks={setRecurringWeeks}
-            reservationMode={reservationMode}
-            setReservationMode={setReservationMode}
-            roomStartTime={roomStartTime}
-            setRoomStartTime={setRoomStartTime}
-            roomEndTime={roomEndTime}
-            setRoomEndTime={setRoomEndTime}
-            message={message}
-          />
-        </div>
-      )}
-
       {selected && detailsOpen && (
         <ResourceDetailsModal
           desk={selected}
