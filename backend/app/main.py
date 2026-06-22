@@ -92,11 +92,15 @@ def _ensure_database_schema():
             plans = conn.execute(text("SELECT id, image_path FROM floor_plans")).fetchall()
             uploads_dir = Path(settings.upload_dir).resolve()
             for plan_id, image_path in plans:
-                if not image_path:
+                if not image_path or image_path.startswith(("http://", "https://")):
                     continue
                 path = Path(image_path)
-                if not path.is_absolute():
-                    resolved = (uploads_dir / path.name).resolve()
+                resolved = (uploads_dir / path.name).resolve() if not path.is_absolute() else path
+                if not resolved.exists():
+                    local_copy = (uploads_dir / path.name).resolve()
+                    if local_copy.exists():
+                        resolved = local_copy
+                if resolved.exists() and str(resolved) != image_path:
                     conn.execute(
                         text("UPDATE floor_plans SET image_path = :path WHERE id = :id"),
                         {"path": str(resolved), "id": plan_id},
