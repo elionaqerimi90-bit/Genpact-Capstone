@@ -23,18 +23,22 @@ import {
 import { getEmployeeSummary, getMyReservations } from '../api/client';
 import KpiCard from '../components/ui/KpiCard';
 import PageHeader from '../components/ui/PageHeader';
+import { SkeletonCard, SkeletonTable } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
-    getEmployeeSummary().then(setSummary);
-    getMyReservations().then((r) =>
-      setReservations(r.filter((x) => x.status === 'active').slice(0, 6)),
-    );
+    Promise.all([
+      getEmployeeSummary().then(setSummary),
+      getMyReservations().then((r) =>
+        setReservations(r.filter((x) => x.status === 'active').slice(0, 6)),
+      ),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const trendData =
@@ -50,6 +54,13 @@ export default function Dashboard() {
         subtitle="Overview of today's workspace availability and your bookings"
       />
 
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={index} rows={2} />
+          ))}
+        </div>
+      ) : (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Today's Occupancy"
@@ -79,11 +90,15 @@ export default function Dashboard() {
           accent="bg-amber-50 text-amber-600"
         />
       </div>
+      )}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="card p-6 xl:col-span-2">
           <h3 className="font-semibold text-slate-900">Occupancy Trend</h3>
           <p className="text-sm text-slate-500">Last 7 days booking activity</p>
+          {loading ? (
+            <SkeletonCard rows={8} className="mt-4 shadow-none" />
+          ) : (
           <ResponsiveContainer width="100%" height={240} className="mt-4">
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -106,6 +121,7 @@ export default function Dashboard() {
               />
             </LineChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card p-6">
@@ -134,6 +150,9 @@ export default function Dashboard() {
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900">Floor Overview</h3>
           <p className="text-sm text-slate-500">Occupancy by floor today</p>
+          {loading ? (
+            <SkeletonCard rows={7} className="mt-4 shadow-none" />
+          ) : (
           <ResponsiveContainer width="100%" height={220} className="mt-4">
             <BarChart data={summary?.floor_overview ?? []} layout="vertical" barSize={18}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
@@ -149,6 +168,7 @@ export default function Dashboard() {
               <Bar dataKey="occupancy" fill="#0052cc" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card overflow-hidden">
@@ -157,6 +177,9 @@ export default function Dashboard() {
             <p className="text-sm text-slate-500">Your upcoming bookings</p>
           </div>
           <div className="overflow-x-auto">
+            {loading ? (
+              <SkeletonTable rows={4} columns={4} />
+            ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -191,6 +214,7 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </div>

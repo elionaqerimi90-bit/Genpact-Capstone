@@ -6,17 +6,21 @@ import MiniCalendar from '../components/MiniCalendar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import KpiCard from '../components/ui/KpiCard';
 import PageHeader from '../components/ui/PageHeader';
+import { SkeletonCard, SkeletonTable } from '../components/ui/Skeleton';
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState([]);
   const [cancelling, setCancelling] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [limits, setLimits] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const load = () => getMyReservations().then(setReservations);
   useEffect(() => {
-    load();
-    getBookingLimits().then(setLimits).catch(() => setLimits(null));
+    Promise.all([
+      load(),
+      getBookingLimits().then(setLimits).catch(() => setLimits(null)),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const today = startOfToday();
@@ -61,22 +65,34 @@ export default function ReservationsPage() {
         </div>
       )}
 
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={index} rows={2} />
+          ))}
+        </div>
+      ) : (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Upcoming" value={upcoming.length} icon={Clock} accent="bg-sky-50 text-sky-600" />
         <KpiCard label="Completed" value={completed.length} icon={CheckCircle2} accent="bg-emerald-50 text-emerald-600" />
         <KpiCard label="Cancelled" value={cancelled.length} icon={CalendarX} accent="bg-slate-100 text-slate-600" />
         <KpiCard label="Total Bookings" value={reservations.length} icon={History} accent="bg-violet-50 text-violet-600" />
       </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <MiniCalendar highlightedDates={highlightedDates} />
+        {loading ? <SkeletonCard rows={8} /> : <MiniCalendar highlightedDates={highlightedDates} />}
 
         <div className="card lg:col-span-2">
           <div className="border-b border-slate-100 px-6 py-4">
             <h3 className="font-semibold text-slate-900">Upcoming Reservations</h3>
           </div>
           <div className="divide-y divide-slate-100 p-4">
-            {upcoming.map((r) => (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={index} rows={3} className="mb-3" />
+              ))
+            ) : upcoming.map((r) => (
               <div
                 key={r.id}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl p-4 transition hover:bg-slate-50"
@@ -108,7 +124,7 @@ export default function ReservationsPage() {
                 </button>
               </div>
             ))}
-            {upcoming.length === 0 && (
+            {!loading && upcoming.length === 0 && (
               <p className="py-12 text-center text-slate-400">No upcoming reservations</p>
             )}
           </div>
@@ -119,6 +135,9 @@ export default function ReservationsPage() {
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="font-semibold text-slate-900">Booking History</h3>
         </div>
+        {loading ? (
+          <SkeletonTable rows={5} columns={4} />
+        ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -151,6 +170,7 @@ export default function ReservationsPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       <ConfirmDialog

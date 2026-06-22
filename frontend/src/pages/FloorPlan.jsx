@@ -19,6 +19,7 @@ import {
 import DeskDetailPanel from '../components/DeskDetailPanel';
 import ResourceDetailsModal from '../components/ResourceDetailsModal';
 import PageHeader from '../components/ui/PageHeader';
+import { SkeletonBlock, SkeletonCard } from '../components/ui/Skeleton';
 import { formatApiError } from '../lib/apiError';
 import { ZONE_OPTIONS } from '../lib/constants';
 import { getAlternativeDesks, isResourceAvailable, isResourceReservedByOther } from '../lib/desks';
@@ -60,6 +61,8 @@ export default function FloorPlan() {
   const [teamBookingBusy, setTeamBookingBusy] = useState(false);
   const [teamBookingMessage, setTeamBookingMessage] = useState('');
   const [teamAssignments, setTeamAssignments] = useState({});
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [resourcesLoading, setResourcesLoading] = useState(true);
   const [showRecurring, setShowRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(0);
   const { user } = useAuth();
@@ -72,11 +75,20 @@ export default function FloorPlan() {
   }, [floorFromQuery, floor]);
 
   useEffect(() => {
-    getFloors().then((f) => {
-      setFloors(f);
-      if (f.length && !floor) setFloor(f[0]);
-    });
-    getFloorPlans().then(setPlans);
+    let cancelled = false;
+    Promise.all([getFloors(), getFloorPlans()])
+      .then(([f, planData]) => {
+        if (cancelled) return;
+        setFloors(f);
+        setPlans(planData);
+        if (f.length && !floor) setFloor(f[0]);
+      })
+      .finally(() => {
+        if (!cancelled) setInitialLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -86,8 +98,11 @@ export default function FloorPlan() {
   const zone = zoneFilters.length === 1 ? zoneFilters[0] : undefined;
 
   useEffect(() => {
+    let cancelled = false;
+    setResourcesLoading(true);
     if (nearTeam && canUseTeamDeskFinder) {
       getTeamDeskRecommendations(date).then((data) => {
+      if (cancelled) return;
       setTeamHint(
           data.team_zone
             ? `Team desks are usually near ${data.team_zone}`
@@ -99,8 +114,12 @@ export default function FloorPlan() {
         if (data.resources?.length && !floor) {
           setFloor(data.resources[0].floor);
         }
+      }).finally(() => {
+        if (!cancelled) setResourcesLoading(false);
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     getResources({
@@ -109,12 +128,18 @@ export default function FloorPlan() {
       zone,
       type: type || undefined,
     }).then((data) => {
+      if (cancelled) return;
         const filtered =
         zoneFilters.length > 1
           ? data.filter((r) => zoneFilters.includes(r.zone))
           : data;
       setResources(sortByNaturalName(user?.role === 'employee' ? filtered.filter((r) => r.type !== 'room') : filtered));
+    }).finally(() => {
+      if (!cancelled) setResourcesLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [date, floor, zone, zoneFilters, type, nearTeam, user?.role, canUseTeamDeskFinder]);
 
   useEffect(() => {
@@ -453,7 +478,16 @@ export default function FloorPlan() {
         </aside>
 
         <div className="relative flex min-h-[520px] min-w-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200 p-3 shadow-inner">
-          {plan ? (
+          {initialLoading || resourcesLoading ? (
+            <div className="w-full space-y-4 p-4">
+              <SkeletonBlock className="h-[320px] w-full rounded-xl" />
+              <div className="grid grid-cols-3 gap-3">
+                <SkeletonBlock className="h-3" />
+                <SkeletonBlock className="h-3" />
+                <SkeletonBlock className="h-3" />
+              </div>
+            </div>
+          ) : plan ? (
             <div className="relative max-h-[720px] w-full">
               {!missingPlanImages[plan.id] ? (
                 <img
@@ -510,7 +544,11 @@ export default function FloorPlan() {
         </div>
 
         <aside className="hidden xl:block">
-          {selected ? (
+          {resourcesLoading ? (
+            <div className="sticky top-24">
+              <SkeletonCard rows={8} />
+            </div>
+          ) : selected ? (
             <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
               <DeskDetailPanel
                 desk={selected}
@@ -734,6 +772,12 @@ export default function FloorPlan() {
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="font-semibold text-slate-900">All Resources</h3>
         </div>
+        {resourcesLoading ? (
+          <div className="p-4">
+            <SkeletonCard rows={5} />
+          </div>
+        ) : (
+        <>
         <div className="divide-y divide-slate-100 p-3 sm:hidden">
           {resources.map((r) => (
             <button
@@ -803,6 +847,8 @@ export default function FloorPlan() {
             ))}
           </tbody>
         </table>
+        </>
+        )}
       </div>
     </div>
   );

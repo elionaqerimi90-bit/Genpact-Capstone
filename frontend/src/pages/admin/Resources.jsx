@@ -9,6 +9,7 @@ import {
   updateResource,
 } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
+import { SkeletonCard, SkeletonTable } from '../../components/ui/Skeleton';
 import { ZONE_OPTIONS } from '../../lib/constants';
 import { compareNatural, sortByNaturalFloor, sortByNaturalName } from '../../lib/sort';
 import { showConfirmToast } from '../../lib/toast';
@@ -106,8 +107,12 @@ export default function Resources() {
   const [floorPlans, setFloorPlans] = useState([]);
   const [selectedResourceIds, setSelectedResourceIds] = useState([]);
   const [bulkCount, setBulkCount] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const load = () => getResources().then((data) => setResources(sortByNaturalName(data)));
+  const load = () =>
+    getResources()
+      .then((data) => setResources(sortByNaturalName(data)))
+      .finally(() => setLoading(false));
 
   const buildingOptions = useMemo(
     () => [...new Set(floorPlans.map((plan) => plan.building).filter(Boolean))].sort(),
@@ -514,6 +519,17 @@ export default function Resources() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        {loading ? (
+          <div className="p-3">
+            <div className="md:hidden">
+              <SkeletonCard rows={6} />
+            </div>
+            <div className="hidden md:block">
+              <SkeletonTable rows={7} columns={8} />
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="divide-y divide-slate-100 p-3 md:hidden">
           {visibleResources.map((resource) => (
             <article key={resource.id} className="rounded-xl px-2 py-3">
@@ -644,6 +660,8 @@ export default function Resources() {
           </tbody>
           </table>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
