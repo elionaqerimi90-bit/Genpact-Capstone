@@ -253,6 +253,13 @@ export async function resetPassword(token, password) {
   return data;
 }
 
+export async function requestPasswordReset(email) {
+  const { data } = await api.post('/auth/forgot-password', {
+    email: email.trim().toLowerCase(),
+  });
+  return data;
+}
+
 export async function createTeamBookings(date, bookings, repeat_weeks = 0) {
   const { data } = await api.post('/reservations/team-bookings', { date, bookings, repeat_weeks });
   return data;

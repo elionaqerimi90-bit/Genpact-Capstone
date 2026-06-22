@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { AdminRoute, ManagerRoute, ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import FloorPlan from './pages/FloorPlan';
 import Reservations from './pages/Reservations';
@@ -24,6 +25,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             element={
