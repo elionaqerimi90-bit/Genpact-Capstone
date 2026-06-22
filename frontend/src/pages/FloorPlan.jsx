@@ -399,13 +399,13 @@ export default function FloorPlan() {
         </div>
       )}
 
-      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
         Green desks are free for {format(new Date(date + 'T12:00:00'), 'MMM d')}. Red desks are already booked.
         One desk per day, no double booking.
       </div>
 
-      <div className="card mb-4 flex flex-wrap items-end gap-4 p-4">
-        <div>
+      <div className="card mb-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end lg:gap-4">
+        <div className="min-w-0">
           <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <Calendar size={12} /> Date
           </label>
@@ -415,17 +415,17 @@ export default function FloorPlan() {
             min={format(new Date(), 'yyyy-MM-dd')}
             max={maxDate}
             onChange={(e) => setDate(e.target.value)}
-            className="input-field w-auto"
+            className="input-field w-full lg:w-auto"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <Layers size={12} /> Floor
           </label>
           <select
             value={floor}
             onChange={(e) => setFloor(e.target.value)}
-            className="input-field w-auto min-w-[140px]"
+            className="input-field w-full lg:w-auto lg:min-w-[140px]"
           >
             {floors.map((f) => (
               <option key={f} value={f}>
@@ -434,14 +434,14 @@ export default function FloorPlan() {
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Resource Type
           </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="input-field w-auto min-w-[140px]"
+            className="input-field w-full lg:w-auto lg:min-w-[140px]"
           >
             <option value="">All resources</option>
             <option value="desk">Desks only</option>

@@ -80,15 +80,15 @@ export default function ResourceDetailsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center overscroll-contain bg-slate-900/50 p-0 sm:items-center sm:p-4">
       <div className="h-[100dvh] w-full overflow-y-auto overscroll-contain bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:overflow-hidden">
-        <div className="min-h-0 border-b border-slate-200 bg-slate-50 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="relative z-0 min-h-0 border-b border-slate-200 bg-slate-50 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5 sm:py-4 lg:static lg:bg-transparent">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+              className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
             >
-              <ArrowLeft size={16} />
-              Back to floor plan
+              <ArrowLeft size={16} className="shrink-0" />
+              <span className="truncate">Back to floor plan</span>
             </button>
             <button
               type="button"
@@ -99,24 +99,24 @@ export default function ResourceDetailsModal({
             </button>
           </div>
 
-          <div className="space-y-4 p-5">
+          <div className="space-y-4 p-4 sm:p-5">
             <img
               src={image}
               alt={desk.name}
               className="h-48 w-full rounded-xl border border-slate-200 object-cover sm:h-64 lg:h-[420px]"
             />
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="min-h-[84px] rounded-xl border border-slate-200 bg-white p-4 sm:p-3">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Location</div>
                 <div className="mt-1 break-words font-semibold text-slate-900">{desk.building ?? 'HQ - Prishtina'}</div>
                 <div className="break-words text-sm text-slate-500">{desk.zone}</div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="min-h-[84px] rounded-xl border border-slate-200 bg-white p-4 sm:p-3">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Floor</div>
                 <div className="mt-1 break-words font-semibold text-slate-900">Floor {desk.floor}</div>
                 <div className="break-words text-sm text-slate-500">{getLabelForType(desk.type)}</div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="min-h-[84px] rounded-xl border border-slate-200 bg-white p-4 sm:p-3">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Capacity</div>
                 <div className="mt-1 break-words font-semibold text-slate-900">
                   {desk.capacity} {desk.capacity === 1 ? 'person' : 'people'}
@@ -127,20 +127,20 @@ export default function ResourceDetailsModal({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-col border-t border-slate-200 p-5 sm:p-6 lg:overflow-y-auto lg:overscroll-contain lg:border-t-0">
+        <div className="relative z-10 flex min-h-0 flex-col border-t border-slate-200 bg-white p-5 pt-6 sm:p-6 lg:overflow-y-auto lg:overscroll-contain lg:border-t-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-sm text-slate-500">{desk.desk_type ?? getLabelForType(desk.type)}</p>
               <h2 className="break-words text-2xl font-bold leading-tight text-slate-900 sm:text-3xl">{desk.name}</h2>
             </div>
-            <span className={`${isResourceAvailable(desk) ? 'badge-green' : 'badge-red'} self-start shrink-0`}>
+            <span className={`${isResourceAvailable(desk) ? 'badge-green' : 'badge-red'} self-start shrink-0 whitespace-nowrap`}>
               {isResourceAvailable(desk) ? 'Available' : 'Reserved'}
             </span>
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-sm font-semibold text-slate-900">Next available</div>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="mt-2 grid gap-1 text-sm sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
               <span className="break-words text-brand-600">{nextAvailable.day}</span>
               <span className="shrink-0 font-semibold text-slate-900">{nextAvailable.time}</span>
             </div>
@@ -153,11 +153,11 @@ export default function ResourceDetailsModal({
                 const meta = DETAIL_AMENITIES[amenity];
                 const Icon = meta?.icon ?? Info;
                 return (
-                  <div key={amenity} className="flex gap-3 rounded-xl border border-slate-200 p-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                  <div key={amenity} className="flex gap-3 rounded-xl border border-slate-200 p-4 sm:p-3">
+                    <div className="h-10 w-10 shrink-0 rounded-lg bg-slate-100 p-2 text-slate-600">
                       <Icon size={16} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium text-slate-900">{amenity}</div>
                       <div className="text-sm text-slate-500">
                         {meta?.copy ?? 'Configured for everyday office work'}
