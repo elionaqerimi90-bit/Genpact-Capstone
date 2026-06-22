@@ -264,7 +264,7 @@ export default function Users() {
           />
           <input
             type="email"
-            placeholder={`Email (name.surname${emailDomainHint()})`}
+            placeholder={`Email (${emailDomainHint()})`}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="input-field"
@@ -300,7 +300,7 @@ export default function Users() {
           )}
           {!editingUserId && (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500 sm:col-span-2">
-              Only company emails ending with {emailDomainHint()} are allowed.
+              Any valid email address is allowed.
             </div>
           )}
           <div className="flex flex-wrap gap-3 sm:col-span-2">
