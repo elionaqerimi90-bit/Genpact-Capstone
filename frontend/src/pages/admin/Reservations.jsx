@@ -8,6 +8,7 @@ import {
 } from '../../api/client';
 import PageHeader from '../../components/ui/PageHeader';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { SkeletonTable } from '../../components/ui/Skeleton';
 
 const emptyForm = {
   reservationId: null,
@@ -27,21 +28,24 @@ export default function AdminReservations() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busyReservationId, setBusyReservationId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    const [reservationData, resourceData] = await Promise.all([
-      getAllReservations(filterDate || null),
-      getResources(),
-    ]);
+  const loadReservations = async () => {
+    setLoading(true);
+    const reservationData = await getAllReservations(filterDate || null);
     setReservations(reservationData);
-    setResources(resourceData);
+    setLoading(false);
   };
 
   const formatApiError = (err, fallback) =>
     String(err?.response?.data?.detail ?? err?.message ?? fallback);
 
   useEffect(() => {
-    load();
+    getResources().then(setResources).catch(() => setResources([]));
+  }, []);
+
+  useEffect(() => {
+    loadReservations();
   }, [filterDate]);
 
   const startEdit = (reservation) => {
@@ -68,7 +72,7 @@ export default function AdminReservations() {
       });
       setEditing(emptyForm);
       setMessage('Reservation updated.');
-      await load();
+      await loadReservations();
     } catch (err) {
       setError(formatApiError(err, 'Could not update reservation.'));
     } finally {
@@ -86,7 +90,7 @@ export default function AdminReservations() {
       await cancelReservation(cancelTarget.id);
       setMessage('Reservation cancelled.');
       setCancelTarget(null);
-      await load();
+      await loadReservations();
     } catch (err) {
       setError(formatApiError(err, 'Could not cancel reservation.'));
     } finally {
@@ -171,6 +175,9 @@ export default function AdminReservations() {
         </form>
       )}
 
+      {loading ? (
+        <SkeletonTable rows={7} columns={7} />
+      ) : (
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -228,6 +235,7 @@ export default function AdminReservations() {
           </tbody>
         </table>
       </div>
+      )}
 
       <ConfirmDialog
         open={Boolean(cancelTarget)}
